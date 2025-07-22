@@ -1,0 +1,132 @@
+<div class="computer-list-container">
+  <!-- Header Section -->
+  <div class="header-section">
+    <h1>Computer Management</h1>
+  </div>
+
+  <!-- Search Section -->
+  <div class="search-section">
+    <div class="search-box">
+      <span class="search-icon">
+        <i class="pi pi-search"></i>
+      </span>
+      <input 
+        type="text" 
+        placeholder="Search computers..." 
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="onSearch()"
+        (blur)="onSearch()">
+    </div>
+  </div>
+
+  <!-- Computers Table -->
+  <div class="table-container">
+    <table class="computers-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>SamAccountName</th>
+          <th>OS</th>
+          <th>Last Logon</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let computer of computers" class="computer-row">
+          <td><span class="computer-name">{{ computer.Name }}</span></td>
+          <td><code>{{ computer.SamAccountName }}</code></td>
+          <td>{{ computer.OperatingSystem || '-' }}</td>
+          <td>{{ formatDate(computer.LastLogonDate || '') }}</td>
+          <td>{{ computer.Description || '-' }}</td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn-info" title="View Details" (click)="viewComputerDetails(computer)">
+                <i class="pi pi-eye"></i>
+              </button>
+              <button class="btn-warning" title="Move Computer" (click)="moveComputer(computer)">
+                <i class="pi pi-arrow-right-arrow-left"></i>
+              </button>
+              <button class="btn-danger" title="Delete Computer" (click)="deleteComputer(computer)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading computers...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && computers.length === 0" class="empty-state">
+      <i class="pi pi-desktop" style="font-size: 3rem; color: #ccc;"></i>
+      <p>No computers found</p>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" *ngIf="totalRecords > rows">
+    <button [disabled]="first === 0" (click)="onPageChange({first: first - rows, rows})">Previous</button>
+    <span class="page-info">
+      Showing {{ first + 1 }} to {{ (first + rows > totalRecords ? totalRecords : first + rows) }} of {{ totalRecords }} computers
+    </span>
+    <button [disabled]="first + rows >= totalRecords" (click)="onPageChange({first: first + rows, rows})">Next</button>
+  </div>
+
+  <!-- Computer Detail Dialog -->
+  <div class="modal" *ngIf="showComputerDetailDialog" (click)="showComputerDetailDialog = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Computer Details</h3>
+        <button class="close-btn" (click)="showComputerDetailDialog = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" *ngIf="selectedComputer">
+        <div class="detail-grid">
+          <div class="detail-row"><label>Name:</label><span>{{ selectedComputer.Name }}</span></div>
+          <div class="detail-row"><label>SamAccountName:</label><span>{{ selectedComputer.SamAccountName }}</span></div>
+          <div class="detail-row"><label>Operating System:</label><span>{{ selectedComputer.OperatingSystem || '-' }}</span></div>
+          <div class="detail-row"><label>Last Logon:</label><span>{{ formatDate(selectedComputer.LastLogonDate || '') }}</span></div>
+          <div class="detail-row"><label>Description:</label><span>{{ selectedComputer.Description || '-' }}</span></div>
+          <div class="detail-row"><label>Distinguished Name:</label><span>{{ selectedComputer.DistinguishedName }}</span></div>
+          <div class="detail-row"><label>Enabled:</label><span>{{ selectedComputer.Enabled ? 'Yes' : 'No' }}</span></div>
+          <div class="detail-row"><label>Created:</label><span>{{ formatDate(selectedComputer.Created || '') }}</span></div>
+          <div class="detail-row"><label>Modified:</label><span>{{ formatDate(selectedComputer.Modified || '') }}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Computer Dialog -->
+  <div class="modal" *ngIf="showMoveComputerDialog" (click)="showMoveComputerDialog = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Move Computer</h3>
+        <button class="close-btn" (click)="showMoveComputerDialog = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Target Organizational Unit:</label>
+          <select [(ngModel)]="moveRequest.target_ou">
+            <option value="">Select an OU</option>
+            <option *ngFor="let ou of availableOUs" [value]="ou.DistinguishedName">
+              {{ ou.Name }} ({{ ou.DistinguishedName }})
+            </option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="showMoveComputerDialog = false">Cancel</button>
+          <button class="btn-primary" (click)="submitMoveComputer()">Move Computer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
