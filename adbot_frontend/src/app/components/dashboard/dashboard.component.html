@@ -1,0 +1,108 @@
+<div class="dashboard">
+  <!-- Statistics Cards Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-content">
+        <div class="stat-info">
+          <h3 class="stat-title">Total Users</h3>
+          <div class="stat-value">{{ stats.totalUsers.toLocaleString() }}</div>
+          <p class="stat-description">Active Directory accounts</p>
+          <div class="stat-change positive">+12% from last month</div>
+        </div>
+        <div class="stat-icon">
+          <i class="pi pi-users"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-content">
+        <div class="stat-info">
+          <h3 class="stat-title">Active Groups</h3>
+          <div class="stat-value">{{ stats.activeGroups }}</div>
+          <p class="stat-description">Security and distribution groups</p>
+          <div class="stat-change positive">+2 new groups</div>
+        </div>
+        <div class="stat-icon">
+          <i class="pi pi-users"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-content">
+        <div class="stat-info">
+          <h3 class="stat-title">Computers</h3>
+          <div class="stat-value">{{ stats.computers.toLocaleString() }}</div>
+          <p class="stat-description">Domain-joined machines</p>
+          <div class="stat-change positive">+18 this week</div>
+        </div>
+        <div class="stat-icon">
+          <i class="pi pi-desktop"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-content">
+        <div class="stat-info">
+          <h3 class="stat-title">System Health</h3>
+          <div class="stat-value">{{ stats.systemHealth }}%</div>
+          <p class="stat-description">Service availability</p>
+          <div class="stat-change positive">All systems operational</div>
+        </div>
+        <div class="stat-icon">
+          <i class="pi pi-chart-line"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity and Actions Row -->
+  <div class="content-row">
+    <!-- Recent Activity Card -->
+    <div class="activity-card">
+      <div class="card-header">
+        <h3>Recent Activity</h3>
+        <p>Latest changes in your Active Directory</p>
+      </div>
+      <div class="activity-list">
+        <div 
+          *ngFor="let activity of recentActivity" 
+          class="activity-item"
+          [style.border-left-color]="getStatusColor(activity.type)">
+          <div class="activity-dot" [style.background-color]="getStatusColor(activity.type)"></div>
+          <div class="activity-content">
+            <div class="activity-description">{{ activity.description }}</div>
+            <div class="activity-meta">
+              <span class="activity-user">by {{ activity.user }}</span>
+              <span class="activity-time">{{ activity.time }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div class="actions-card">
+      <div class="card-header">
+        <h3>Quick Actions</h3>
+        <p>Common administrative tasks</p>
+      </div>
+      <div class="actions-list">
+        <div 
+          *ngFor="let action of quickActions" 
+          class="action-item"
+          [routerLink]="action.route">
+          <div class="action-icon">
+            <i [class]="action.icon"></i>
+          </div>
+          <div class="action-content">
+            <h4 class="action-title">{{ action.title }}</h4>
+            <p class="action-description">{{ action.description }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

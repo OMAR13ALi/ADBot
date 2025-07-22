@@ -1,0 +1,36 @@
+<div class="sidebar">
+  <!-- Logo Section -->
+  <div class="logo-section">
+    <div class="logo">
+      <div class="logo-icon">AD</div>
+      <div class="logo-text">
+        <div class="logo-title">ADBot</div>
+        <div class="logo-subtitle">Management Suite</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Section -->
+  <div class="navigation-section">
+    <h3 class="section-title">Navigation</h3>
+    <nav class="nav-menu">
+      <a 
+        *ngFor="let item of menuItems" 
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="onMenuClick(item)">
+        <i [class]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Logout Section -->
+  <div class="logout-section">
+    <button class="logout-button" (click)="logout()">
+      <i class="pi pi-sign-out"></i>
+      <span>Logout</span>
+    </button>
+  </div>
+</div> 

@@ -6,11 +6,11 @@ import { ComputerListComponent } from './components/computer-list/computer-list.
 import { SettingsComponent } from './components/settings/settings.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/users', pathMatch: 'full' },
+  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'users', component: UserListComponent },
   { path: 'groups', component: GroupListComponent },
   { path: 'computers', component: ComputerListComponent },
   { path: 'settings', component: SettingsComponent },
-  { path: '**', redirectTo: '/users' }
+  { path: '**', redirectTo: '/dashboard' }
 ];
