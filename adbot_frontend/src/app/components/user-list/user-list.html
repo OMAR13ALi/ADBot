@@ -1,1 +1,240 @@
-<p>user-list works!</p>
+<div class="user-list-container">
+  <!-- Header Section -->
+  <div class="header-section">
+    <h1>User Management</h1>
+    <p-button 
+      label="Add New User" 
+      icon="pi pi-plus" 
+      severity="success"
+      (onClick)="showUserDetailDialog = true">
+    </p-button>
+  </div>
+
+  <!-- Search and Filter Section -->
+  <div class="search-filter-section">
+    <div class="search-box">
+      <span class="p-input-icon-left">
+        <i class="pi pi-search"></i>
+        <input 
+          pInputText 
+          type="text" 
+          placeholder="Search users..." 
+          [(ngModel)]="searchTerm"
+          (keyup.enter)="onSearch()"
+          (blur)="onSearch()">
+      </span>
+    </div>
+    
+    <div class="filter-box">
+      <select 
+        [(ngModel)]="enabledFilter"
+        (change)="onFilterChange()"
+        class="status-filter">
+        <option [value]="null">All Users</option>
+        <option [value]="true">Enabled Only</option>
+        <option [value]="false">Disabled Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <p-table 
+    [value]="users" 
+    [loading]="loading"
+    [paginator]="true" 
+    [rows]="rows"
+    [totalRecords]="totalRecords"
+    [first]="first"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users"
+    [rowsPerPageOptions]="[10, 25, 50, 100]"
+    (onLazyLoad)="onPageChange($event)"
+    styleClass="p-datatable-sm"
+    responsiveLayout="scroll">
+    
+    <!-- Name Column -->
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Name</th>
+        <th>Username</th>
+        <th>Status</th>
+        <th>Department</th>
+        <th>Last Logon</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+    
+    <ng-template pTemplate="body" let-user>
+      <tr>
+        <!-- Name -->
+        <td>
+          <div class="user-name-cell">
+            <span class="user-name">{{ user.Name }}</span>
+            <small class="user-description" *ngIf="user.Description">
+              {{ user.Description }}
+            </small>
+          </div>
+        </td>
+        
+        <!-- Username -->
+        <td>
+          <code>{{ user.SamAccountName }}</code>
+        </td>
+        
+        <!-- Status -->
+        <td>
+          <div class="status-cell">
+            <p-button 
+              [label]="user.Enabled ? 'Enabled' : 'Disabled'"
+              [severity]="user.Enabled ? 'success' : 'danger'"
+              size="small"
+              (onClick)="toggleUserStatus(user)"
+              [disabled]="loading">
+            </p-button>
+            <span class="status-label" [class]="getStatusSeverity(user.Enabled)">
+              <i [class]="getStatusIcon(user.Enabled)"></i>
+              {{ user.Enabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+        </td>
+        
+        <!-- Department -->
+        <td>
+          <span class="department">{{ user.Department || '-' }}</span>
+        </td>
+        
+        <!-- Last Logon -->
+        <td>
+          <span class="last-logon">{{ formatDate(user.LastLogonDate) }}</span>
+        </td>
+        
+        <!-- Actions -->
+        <td>
+          <div class="action-buttons">
+            <p-button 
+              icon="pi pi-eye" 
+              severity="info" 
+              size="small"
+              pTooltip="View Details"
+              (onClick)="viewUserDetails(user)">
+            </p-button>
+            
+            <p-button 
+              icon="pi pi-key" 
+              severity="secondary" 
+              size="small"
+              pTooltip="Reset Password"
+              (onClick)="resetPassword(user)">
+            </p-button>
+            
+            <p-button 
+              icon="pi pi-trash" 
+              severity="danger" 
+              size="small"
+              pTooltip="Delete User"
+              (onClick)="deleteUser(user)">
+            </p-button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    
+    <!-- Empty State -->
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="6" class="text-center">
+          <div class="empty-state">
+            <i class="pi pi-users" style="font-size: 3rem; color: #ccc;"></i>
+            <p>No users found</p>
+            <p-button 
+              label="Add First User" 
+              icon="pi pi-plus" 
+              severity="success"
+              (onClick)="showUserDetailDialog = true">
+            </p-button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <!-- User Detail Dialog -->
+  <p-dialog 
+    header="User Details" 
+    [(visible)]="showUserDetailDialog" 
+    [modal]="true" 
+    [style]="{width: '50vw'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div *ngIf="selectedUser" class="user-details">
+      <div class="detail-row">
+        <label>Name:</label>
+        <span>{{ selectedUser.Name }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Username:</label>
+        <span>{{ selectedUser.SamAccountName }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Email:</label>
+        <span>{{ selectedUser.EmailAddress || '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Department:</label>
+        <span>{{ selectedUser.Department || '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Title:</label>
+        <span>{{ selectedUser.Title || '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Phone:</label>
+        <span>{{ selectedUser.OfficePhone || '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Manager:</label>
+        <span>{{ selectedUser.Manager || '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Created:</label>
+        <span>{{ formatDate(selectedUser.Created || '') }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Last Modified:</label>
+        <span>{{ formatDate(selectedUser.Modified || '') }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Password Last Set:</label>
+        <span>{{ formatDate(selectedUser.PasswordLastSet || '') }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Account Expires:</label>
+        <span>{{ formatDate(selectedUser.AccountExpirationDate || '') }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Locked Out:</label>
+        <span>{{ selectedUser.LockedOut ? 'Yes' : 'No' }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Password Expired:</label>
+        <span>{{ selectedUser.PasswordExpired ? 'Yes' : 'No' }}</span>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <p-button 
+        label="Close" 
+        icon="pi pi-times" 
+        (onClick)="showUserDetailDialog = false" 
+        styleClass="p-button-text">
+      </p-button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+  
+  <!-- Confirmation Dialog -->
+  <p-confirmDialog></p-confirmDialog>
+</div>
