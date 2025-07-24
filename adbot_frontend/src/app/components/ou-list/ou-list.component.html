@@ -1,0 +1,334 @@
+<div class="ou-list-container">
+  <!-- Test Message -->
+  <div style="background: #e3f2fd; padding: 10px; margin-bottom: 10px; border-radius: 4px; border-left: 4px solid #2196f3;">
+    <strong>OU Component Loaded Successfully!</strong> - If you can see this message, the component is working.
+    <br>
+    <small>OUs loaded: {{ ous.length }}, Loading: {{ loading }}, Error: {{ errorMessage }}</small>
+  </div>
+  
+  <!-- Header Section -->
+  <div class="header-section">
+    <h1>Organizational Units Management</h1>
+    <button 
+      class="add-ou-btn"
+      (click)="openAddOuDialog()">
+      <i class="pi pi-plus"></i>
+      Add New OU
+    </button>
+  </div>
+
+  <!-- Search Section -->
+  <div class="search-section">
+    <div class="search-box">
+      <span class="p-input-icon-left">
+        <i class="pi pi-search"></i>
+        <input 
+          pInputText 
+          type="text" 
+          placeholder="Search OUs..." 
+          [(ngModel)]="searchTerm"
+          (keyup.enter)="onSearch()"
+          (blur)="onSearch()">
+      </span>
+    </div>
+  </div>
+
+  <!-- OUs Table -->
+  <p-table 
+    [value]="ous" 
+    [loading]="loading"
+    [paginator]="true" 
+    [rows]="rows"
+    [totalRecords]="totalRecords"
+    [first]="first"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} OUs"
+    [rowsPerPageOptions]="[10, 25, 50, 100]"
+    (onLazyLoad)="onPageChange($event)"
+    styleClass="p-datatable-sm"
+    responsiveLayout="scroll">
+    
+    <!-- Header -->
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Name</th>
+        <th>Path</th>
+        <th>Description</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+    
+    <!-- Body -->
+    <ng-template pTemplate="body" let-ou>
+      <tr>
+        <!-- Name -->
+        <td>
+          <div class="ou-name-cell">
+            <span class="ou-name">{{ ou.Name }}</span>
+          </div>
+        </td>
+        
+        <!-- Path -->
+        <td>
+          <div class="ou-path-cell">
+            <span class="ou-path">{{ getOuPath(ou.DistinguishedName) }}</span>
+            <small class="ou-dn">{{ formatDistinguishedName(ou.DistinguishedName) }}</small>
+          </div>
+        </td>
+        
+        <!-- Description -->
+        <td>
+          <span class="ou-description">{{ ou.Description || '-' }}</span>
+        </td>
+        
+        <!-- Actions -->
+        <td>
+          <div class="action-buttons">
+            <button 
+              class="action-btn view-btn"
+              type="button"
+              (click)="viewOuDetails(ou); $event.stopPropagation()">
+              <i class="pi pi-eye"></i>
+              <span>View</span>
+            </button>
+            
+            <button 
+              class="action-btn edit-btn"
+              type="button"
+              (click)="openEditOuDialog(ou); $event.stopPropagation()">
+              <i class="pi pi-pencil"></i>
+              <span>Edit</span>
+            </button>
+            
+            <button 
+              class="action-btn delete-btn"
+              type="button"
+              (click)="deleteOU(ou); $event.stopPropagation()">
+              <i class="pi pi-trash"></i>
+              <span>Delete</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    
+    <!-- Empty State -->
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="4" class="text-center">
+          <div class="empty-state">
+            <i class="pi pi-sitemap" style="font-size: 3rem; color: #ccc;"></i>
+            <p>No organizational units found</p>
+            <button 
+              class="add-ou-btn"
+              (click)="openAddOuDialog()">
+              <i class="pi pi-plus"></i>
+              Add First OU
+            </button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <!-- Add New OU Dialog -->
+  <div *ngIf="showAddOuDialog" class="simple-dialog-overlay" (click)="showAddOuDialog = false">
+    <div class="simple-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Add New Organizational Unit</h2>
+        <button (click)="showAddOuDialog = false" class="close-btn">&times;</button>
+      </div>
+      
+      <div class="add-ou-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">OU Name *</label>
+            <input 
+              pInputText 
+              id="name"
+              type="text" 
+              [(ngModel)]="newOU.name"
+              placeholder="Enter OU name"
+              [disabled]="creatingOU">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="parent-ou">Parent OU</label>
+            <select 
+              id="parent-ou"
+              [(ngModel)]="selectedParentOU"
+              [disabled]="creatingOU || loadingParentOUs"
+              class="parent-ou-select">
+              <option [ngValue]="null">Root Domain</option>
+              <option 
+                *ngFor="let parentOu of availableParentOUs" 
+                [ngValue]="parentOu">
+                {{ parentOu.Name }}
+                <span *ngIf="parentOu.Description"> - {{ parentOu.Description }}</span>
+              </option>
+            </select>
+            <small *ngIf="loadingParentOUs" class="loading-text">Loading parent OUs...</small>
+            <small *ngIf="selectedParentOU" class="selected-parent-ou">
+              Selected: {{ selectedParentOU.Name }}
+              <br>
+              <span class="parent-ou-dn">{{ formatDistinguishedName(selectedParentOU.DistinguishedName) }}</span>
+            </small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="path">Custom Path (if not using parent OU)</label>
+            <input 
+              pInputText 
+              id="path"
+              type="text" 
+              [(ngModel)]="newOU.path"
+              placeholder="e.g., DC=example,DC=com"
+              [disabled]="creatingOU || selectedParentOU !== null">
+            <small class="help-text">Only use if you want to specify a custom path instead of selecting a parent OU</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group full-width">
+            <label for="description">Description</label>
+            <textarea 
+              pInputText 
+              id="description"
+              [(ngModel)]="newOU.description"
+              placeholder="Enter OU description"
+              rows="3"
+              [disabled]="creatingOU">
+            </textarea>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dialog-footer">
+        <button 
+          (click)="showAddOuDialog = false" 
+          [disabled]="creatingOU"
+          class="btn btn-secondary">
+          Cancel
+        </button>
+        <button 
+          (click)="createOU()"
+          [disabled]="creatingOU"
+          class="btn btn-primary">
+          Create OU
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit OU Dialog -->
+  <div *ngIf="showEditOuDialog" class="simple-dialog-overlay" (click)="showEditOuDialog = false">
+    <div class="simple-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Edit Organizational Unit</h2>
+        <button (click)="showEditOuDialog = false" class="close-btn">&times;</button>
+      </div>
+      
+      <div class="edit-ou-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-name">OU Name *</label>
+            <input 
+              pInputText 
+              id="edit-name"
+              type="text" 
+              [(ngModel)]="editOU.name"
+              placeholder="Enter OU name"
+              [disabled]="updatingOU">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Current Path</label>
+            <div class="current-path-display">
+              {{ getOuPath(selectedOU?.DistinguishedName || '') }}
+            </div>
+            <small class="help-text">Path cannot be changed. Create a new OU in the desired location.</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group full-width">
+            <label for="edit-description">Description</label>
+            <textarea 
+              pInputText 
+              id="edit-description"
+              [(ngModel)]="editOU.description"
+              placeholder="Enter OU description"
+              rows="3"
+              [disabled]="updatingOU">
+            </textarea>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dialog-footer">
+        <button 
+          (click)="showEditOuDialog = false" 
+          [disabled]="updatingOU"
+          class="btn btn-secondary">
+          Cancel
+        </button>
+        <button 
+          (click)="updateOU()"
+          [disabled]="updatingOU"
+          class="btn btn-primary">
+          Update OU
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OU Detail Dialog -->
+  <p-dialog 
+    header="OU Details" 
+    [(visible)]="showOuDetailDialog" 
+    [modal]="true" 
+    [style]="{width: '50vw'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div *ngIf="selectedOU" class="ou-details">
+      <div class="detail-row">
+        <label>Name:</label>
+        <span>{{ selectedOU.Name }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Path:</label>
+        <span>{{ getOuPath(selectedOU.DistinguishedName) }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Full Distinguished Name:</label>
+        <span class="dn-display">{{ formatDistinguishedName(selectedOU.DistinguishedName) }}</span>
+      </div>
+      <div class="detail-row">
+        <label>Description:</label>
+        <span>{{ selectedOU.Description || '-' }}</span>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <p-button 
+        label="Close" 
+        icon="pi pi-times" 
+        (onClick)="showOuDetailDialog = false" 
+        styleClass="p-button-text">
+      </p-button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+  
+  <!-- Confirmation Dialog -->
+  <p-confirmDialog></p-confirmDialog>
+</div> 

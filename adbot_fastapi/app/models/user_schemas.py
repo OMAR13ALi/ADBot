@@ -18,6 +18,10 @@ class ADUserCreate(ADUserBase):
     password: str = Field(..., min_length=8, description="Password (min 8 characters)")
     enabled: bool = Field(True, description="Whether the account is enabled")
     ou: Optional[str] = Field(None, description="Organizational Unit DN (e.g., 'OU=HR,DC=domain,DC=com')")
+    given_name: Optional[str] = Field(None, description="Given name")
+    surname: Optional[str] = Field(None, description="Surname")
+    display_name: Optional[str] = Field(None, description="Display name")
+    user_principal_name: Optional[str] = Field(None, description="User Principal Name")
     
     @validator('samaccountname')
     def validate_samaccountname(cls, v):
@@ -32,6 +36,10 @@ class ADUserUpdate(BaseModel):
     enabled: Optional[bool] = Field(None, description="Enable/disable account")
     description: Optional[str] = Field(None, description="User description")
     email: Optional[str] = Field(None, description="Email address")
+    given_name: Optional[str] = Field(None, description="Given name")
+    surname: Optional[str] = Field(None, description="Surname")
+    display_name: Optional[str] = Field(None, description="Display name")
+    user_principal_name: Optional[str] = Field(None, description="User Principal Name")
     department: Optional[str] = Field(None, description="Department")
     title: Optional[str] = Field(None, description="Job title")
     phone: Optional[str] = Field(None, description="Phone number")

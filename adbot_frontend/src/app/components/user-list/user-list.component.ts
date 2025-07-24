@@ -11,6 +11,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
+// DropdownModule not available, using select element instead
 import { MessageService, ConfirmationService } from 'primeng/api';
 
 // User Model
@@ -36,11 +37,39 @@ interface User {
   MemberOf?: string[];
 }
 
+// New User Creation Model
+interface NewUser {
+  name: string;
+  samaccountname: string;
+  password: string;
+  enabled: boolean;
+  description?: string;
+  email?: string;
+  department?: string;
+  title?: string;
+  phone?: string;
+  manager?: string;
+  ou?: string;
+}
+
+// OU Model
+interface OU {
+  Name: string;
+  DistinguishedName: string;
+  Description: string;
+}
+
 interface UsersResponse {
   users: User[];
   count: number;
   status: string;
   filters_applied?: any;
+}
+
+interface OUsResponse {
+  organizational_units: OU[];
+  count: number;
+  status: string;
 }
 
 @Component({
@@ -58,7 +87,7 @@ interface UsersResponse {
     ConfirmDialogModule,
     TooltipModule
   ],
-  providers: [MessageService, ConfirmationService],
+
   templateUrl: './user-list.html',
   styleUrl: './user-list.scss'
 })
@@ -81,6 +110,30 @@ export class UserListComponent implements OnInit {
   
   // Dialog visibility
   showUserDetailDialog: boolean = false;
+  showAddUserDialog: boolean = false;
+  
+  // New user form
+  newUser: NewUser = {
+    name: '',
+    samaccountname: '',
+    password: '',
+    enabled: true,
+    description: '',
+    email: '',
+    department: '',
+    title: '',
+    phone: '',
+    manager: '',
+    ou: ''
+  };
+  
+  // OU selection
+  availableOUs: OU[] = [];
+  selectedOU: OU | null = null;
+  loadingOUs: boolean = false;
+  
+  // Form validation
+  creatingUser: boolean = false;
   
   // Status options for filter
   statusOptions = [
@@ -96,7 +149,9 @@ export class UserListComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    console.log('UserListComponent initialized');
     this.loadUsers();
+    this.loadOrganizationalUnits();
   }
 
   loadUsers() {
@@ -129,6 +184,137 @@ export class UserListComponent implements OnInit {
           this.loading = false;
         }
       });
+  }
+
+  loadOrganizationalUnits() {
+    this.loadingOUs = true;
+    this.http.get<OUsResponse>('/api/organizational-units')
+      .subscribe({
+        next: (response) => {
+          this.availableOUs = response.organizational_units;
+          this.loadingOUs = false;
+        },
+        error: (error) => {
+          console.error('Error loading OUs:', error);
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Warning',
+            detail: 'Failed to load organizational units. Users will be created in default container.'
+          });
+          this.loadingOUs = false;
+        }
+      });
+  }
+
+  openAddUserDialog() {
+    console.log('openAddUserDialog called');
+    alert('Button clicked! Dialog should open now.');
+    this.resetNewUserForm();
+    this.showAddUserDialog = true;
+    console.log('showAddUserDialog set to:', this.showAddUserDialog);
+  }
+
+  resetNewUserForm() {
+    this.newUser = {
+      name: '',
+      samaccountname: '',
+      password: '',
+      enabled: true,
+      description: '',
+      email: '',
+      department: '',
+      title: '',
+      phone: '',
+      manager: '',
+      ou: ''
+    };
+    this.selectedOU = null;
+  }
+
+  createUser() {
+    if (!this.validateNewUserForm()) {
+      return;
+    }
+
+    this.creatingUser = true;
+    
+    // Prepare user data
+    const userData = {
+      name: this.newUser.name,
+      samaccountname: this.newUser.samaccountname,
+      password: this.newUser.password,
+      enabled: this.newUser.enabled,
+      description: this.newUser.description || undefined,
+      email: this.newUser.email || undefined,
+      department: this.newUser.department || undefined,
+      title: this.newUser.title || undefined,
+      phone: this.newUser.phone || undefined,
+      manager: this.newUser.manager || undefined,
+      ou: this.selectedOU ? this.selectedOU.DistinguishedName : undefined
+    };
+
+    this.http.post('/api/users', userData)
+      .subscribe({
+        next: (response: any) => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'User created successfully'
+          });
+          this.showAddUserDialog = false;
+          this.loadUsers(); // Refresh the user list
+          this.creatingUser = false;
+        },
+        error: (error) => {
+          console.error('Error creating user:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.error?.detail || 'Failed to create user'
+          });
+          this.creatingUser = false;
+        }
+      });
+  }
+
+  validateNewUserForm(): boolean {
+    if (!this.newUser.name.trim()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Name is required'
+      });
+      return false;
+    }
+    
+    if (!this.newUser.samaccountname.trim()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Username is required'
+      });
+      return false;
+    }
+    
+    if (!this.newUser.password.trim()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Password is required'
+      });
+      return false;
+    }
+    
+    if (this.newUser.password.length < 8) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Password must be at least 8 characters long'
+      });
+      return false;
+    }
+    
+    return true;
   }
 
   onSearch() {

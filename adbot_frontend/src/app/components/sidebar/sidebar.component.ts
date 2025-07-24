@@ -30,6 +30,12 @@ export class SidebarComponent {
       active: false
     },
     { 
+      label: 'Organizational Units', 
+      icon: 'pi pi-sitemap', 
+      route: '/ous',
+      active: false
+    },
+    { 
       label: 'Computers', 
       icon: 'pi pi-desktop', 
       route: '/computers',

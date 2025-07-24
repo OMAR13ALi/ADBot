@@ -1,250 +1,459 @@
 <div class="group-list-container">
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+  <p-confirmDialog></p-confirmDialog>
+
   <!-- Header Section -->
   <div class="header-section">
-    <h1>Group Management</h1>
-    <button class="btn-primary" (click)="showGroupDetailDialog = true">
-      <i class="pi pi-plus"></i>
-      Add New Group
-    </button>
-  </div>
-
-  <!-- Search Section -->
-  <div class="search-section">
-    <div class="search-box">
-      <span class="search-icon">
-        <i class="pi pi-search"></i>
-      </span>
-      <input 
-        type="text" 
-        placeholder="Search groups..." 
-        [(ngModel)]="searchTerm"
-        (keyup.enter)="onSearch()"
-        (blur)="onSearch()">
+    <div class="header-content">
+      <h1>Group Management</h1>
+      <p>Manage Active Directory groups, members, and organizational units</p>
     </div>
-  </div>
-
-  <!-- Groups Table -->
-  <div class="table-container">
-    <table class="groups-table">
-      <thead>
-        <tr>
-          <th>Group Name</th>
-          <th>SamAccountName</th>
-          <th>Description</th>
-          <th>Members</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let group of groups" class="group-row">
-          <!-- Group Name -->
-          <td>
-            <div class="group-name-cell">
-              <span class="group-name">{{ group.Name }}</span>
-            </div>
-          </td>
-          
-          <!-- SamAccountName -->
-          <td>
-            <code>{{ group.SamAccountName }}</code>
-          </td>
-          
-          <!-- Description -->
-          <td>
-            <span class="description">{{ group.Description || '-' }}</span>
-          </td>
-          
-          <!-- Members Count -->
-          <td>
-            <span class="member-count">{{ getMemberCount(group) }} members</span>
-          </td>
-          
-          <!-- Actions -->
-          <td>
-            <div class="action-buttons">
-              <button 
-                class="btn-info" 
-                title="View Details"
-                (click)="viewGroupDetails(group)">
-                <i class="pi pi-eye"></i>
-              </button>
-              
-              <button 
-                class="btn-success" 
-                title="Add Member"
-                (click)="addMemberToGroup(group)">
-                <i class="pi pi-user-plus"></i>
-              </button>
-              
-              <button 
-                class="btn-warning" 
-                title="Move Group"
-                (click)="moveGroup(group)">
-                <i class="pi pi-arrow-right-arrow-left"></i>
-              </button>
-              
-              <button 
-                class="btn-danger" 
-                title="Delete Group"
-                (click)="deleteGroup(group)">
-                <i class="pi pi-trash"></i>
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- Loading State -->
-    <div *ngIf="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading groups...</p>
-    </div>
-
-    <!-- Empty State -->
-    <div *ngIf="!loading && groups.length === 0" class="empty-state">
-      <i class="pi pi-users" style="font-size: 3rem; color: #ccc;"></i>
-      <p>No groups found</p>
-      <button class="btn-primary" (click)="showGroupDetailDialog = true">
-        Add First Group
+    <div class="header-actions">
+      <button 
+        type="button" 
+        class="p-button p-button-primary" 
+        (click)="openAddGroupDialog()"
+        [disabled]="loading">
+        <i class="pi pi-plus"></i>
+        Add New Group
       </button>
     </div>
   </div>
 
-  <!-- Pagination -->
-  <div class="pagination" *ngIf="totalRecords > rows">
-    <button 
-      [disabled]="first === 0"
-      (click)="onPageChange({first: first - rows, rows})">
-      Previous
-    </button>
-    <span class="page-info">
-      Showing {{ first + 1 }} to {{ (first + rows > totalRecords ? totalRecords : first + rows) }} of {{ totalRecords }} groups
-    </span>
-    <button 
-      [disabled]="first + rows >= totalRecords"
-      (click)="onPageChange({first: first + rows, rows})">
-      Next
-    </button>
+  <!-- Search and Filters -->
+  <div class="search-section">
+    <div class="search-box">
+      <input 
+        type="text" 
+        pInputText 
+        placeholder="Search groups by name or SAM account name..."
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="onSearch()"
+        [disabled]="loading">
+      <button 
+        type="button" 
+        class="p-button p-button-secondary" 
+        (click)="onSearch()"
+        [disabled]="loading">
+        <i class="pi pi-search"></i>
+        Search
+      </button>
+    </div>
   </div>
 
-  <!-- Group Detail Dialog -->
-  <div class="modal" *ngIf="showGroupDetailDialog" (click)="showGroupDetailDialog = false">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Group Details</h3>
-        <button class="close-btn" (click)="showGroupDetailDialog = false">
-          <i class="pi pi-times"></i>
-        </button>
-      </div>
+  <!-- Groups Table -->
+  <div class="table-section">
+    <p-table 
+      [value]="groups" 
+      [loading]="loading"
+      [paginator]="true" 
+      [rows]="pageSize"
+      [totalRecords]="totalGroups"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} groups"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      (onPage)="onPageChange($event)"
+      styleClass="p-datatable-sm">
       
-      <div class="modal-body" *ngIf="selectedGroup">
-        <div class="detail-grid">
-          <div class="detail-row">
-            <label>Name:</label>
-            <span>{{ selectedGroup.Name }}</span>
-          </div>
-          <div class="detail-row">
-            <label>SamAccountName:</label>
-            <span>{{ selectedGroup.SamAccountName }}</span>
-          </div>
-          <div class="detail-row">
-            <label>Description:</label>
-            <span>{{ selectedGroup.Description || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <label>Distinguished Name:</label>
-            <span>{{ selectedGroup.DistinguishedName }}</span>
-          </div>
-          <div class="detail-row">
-            <label>Group Scope:</label>
-            <span>{{ selectedGroup.GroupScope || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <label>Group Category:</label>
-            <span>{{ selectedGroup.GroupCategory || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <label>Created:</label>
-            <span>{{ formatDate(selectedGroup.Created || '') }}</span>
-          </div>
-          <div class="detail-row">
-            <label>Modified:</label>
-            <span>{{ formatDate(selectedGroup.Modified || '') }}</span>
-          </div>
-        </div>
-
-        <!-- Members List -->
-        <div class="members-section" *ngIf="selectedGroup.Members && selectedGroup.Members.length > 0">
-          <h4>Members ({{ selectedGroup.Members.length }})</h4>
-          <div class="members-list">
-            <div *ngFor="let member of selectedGroup.Members" class="member-item">
-              <span>{{ member }}</span>
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Group Name</th>
+          <th>SAM Account Name</th>
+          <th>Description</th>
+          <th>Members</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="body" let-group>
+        <tr>
+          <td>
+            <div class="group-name">
+              <strong>{{ group.Name }}</strong>
+            </div>
+          </td>
+          <td>{{ group.SamAccountName }}</td>
+          <td>
+            <span class="description-text">
+              {{ group.Description || 'No description' }}
+            </span>
+          </td>
+          <td>
+            <span class="member-count">
+              {{ group.Members ? group.Members.length : 0 }} members
+            </span>
+          </td>
+          <td>
+            <div class="action-buttons">
               <button 
-                class="btn-danger-small"
-                (click)="removeMemberFromGroup(selectedGroup, member)">
-                <i class="pi pi-times"></i>
+                type="button" 
+                class="p-button p-button-text p-button-sm p-button-info"
+                (click)="viewGroupDetails(group)"
+                pTooltip="View Details">
+                <i class="pi pi-eye"></i>
+                View
+              </button>
+              
+              <button 
+                type="button" 
+                class="p-button p-button-text p-button-sm p-button-warning"
+                (click)="openEditGroupDialog(group)"
+                pTooltip="Edit Group">
+                <i class="pi pi-pencil"></i>
+                Edit
+              </button>
+              
+              <button 
+                type="button" 
+                class="p-button p-button-text p-button-sm p-button-success"
+                (click)="openAddMemberDialog(group)"
+                pTooltip="Add Member">
+                <i class="pi pi-user-plus"></i>
+                Add Member
+              </button>
+              
+              <button 
+                type="button" 
+                class="p-button p-button-text p-button-sm p-button-secondary"
+                (click)="openMoveGroupDialog(group)"
+                pTooltip="Move Group">
+                <i class="pi pi-arrow-right-arrow-left"></i>
+                Move
+              </button>
+              
+              <button 
+                type="button" 
+                class="p-button p-button-text p-button-sm p-button-danger"
+                (click)="deleteGroup(group)"
+                pTooltip="Delete Group">
+                <i class="pi pi-trash"></i>
+                Delete
               </button>
             </div>
+          </td>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="5" class="text-center">
+            <div class="empty-state">
+              <i class="pi pi-users" style="font-size: 3rem; color: #ccc;"></i>
+              <p>No groups found</p>
+              <button 
+                type="button" 
+                class="p-button p-button-primary" 
+                (click)="openAddGroupDialog()">
+                Create Your First Group
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+
+  <!-- Add New Group Dialog -->
+  <p-dialog 
+    header="Add New Group" 
+    [(visible)]="showAddGroupDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div class="dialog-content">
+      <div class="form-group">
+        <label for="groupName">Group Name *</label>
+        <input 
+          id="groupName"
+          type="text" 
+          pInputText 
+          [(ngModel)]="newGroup.name"
+          placeholder="Enter group name"
+          [disabled]="creatingGroup">
+      </div>
+      
+      <div class="form-group">
+        <label for="samAccountName">SAM Account Name *</label>
+        <input 
+          id="samAccountName"
+          type="text" 
+          pInputText 
+          [(ngModel)]="newGroup.samaccountname"
+          placeholder="Enter SAM account name"
+          [disabled]="creatingGroup">
+      </div>
+      
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea 
+          id="description"
+          pInputText 
+          [(ngModel)]="newGroup.description"
+          placeholder="Enter group description"
+          [rows]="3"
+          [disabled]="creatingGroup"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="parentOU">Parent Organizational Unit *</label>
+        <select 
+          id="parentOU"
+          [(ngModel)]="selectedParentOU"
+          [disabled]="creatingGroup"
+          class="form-select">
+          <option [ngValue]="null">Select parent OU</option>
+          <option *ngFor="let ou of organizationalUnits" [ngValue]="ou">
+            {{ ou.Name }}
+          </option>
+        </select>
+        <small class="form-help">
+          Or enter a custom path below
+        </small>
+      </div>
+      
+      <div class="form-group">
+        <label for="customPath">Custom Path</label>
+        <input 
+          id="customPath"
+          type="text" 
+          pInputText 
+          [(ngModel)]="newGroup.path"
+          placeholder="e.g., OU=IT,DC=company,DC=com"
+          [disabled]="creatingGroup || selectedParentOU !== null">
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button 
+        type="button" 
+        class="p-button p-button-text" 
+        (click)="showAddGroupDialog = false"
+        [disabled]="creatingGroup">
+        Cancel
+      </button>
+      <button 
+        type="button" 
+        class="p-button p-button-primary" 
+        (click)="createGroup()"
+        [disabled]="creatingGroup || !newGroup.name || !newGroup.samaccountname">
+        <i class="pi pi-spin pi-spinner" *ngIf="creatingGroup"></i>
+        {{ creatingGroup ? 'Creating...' : 'Create Group' }}
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Edit Group Dialog -->
+  <p-dialog 
+    header="Edit Group" 
+    [(visible)]="showEditGroupDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div class="dialog-content" *ngIf="editingGroup">
+      <div class="form-group">
+        <label for="editGroupName">Group Name</label>
+        <input 
+          id="editGroupName"
+          type="text" 
+          pInputText 
+          [(ngModel)]="editForm.name"
+          placeholder="Enter group name"
+          [disabled]="updatingGroup">
+      </div>
+      
+      <div class="form-group">
+        <label for="editDescription">Description</label>
+        <textarea 
+          id="editDescription"
+          pInputText 
+          [(ngModel)]="editForm.description"
+          placeholder="Enter group description"
+          [rows]="3"
+          [disabled]="updatingGroup"></textarea>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button 
+        type="button" 
+        class="p-button p-button-text" 
+        (click)="showEditGroupDialog = false"
+        [disabled]="updatingGroup">
+        Cancel
+      </button>
+      <button 
+        type="button" 
+        class="p-button p-button-primary" 
+        (click)="updateGroup()"
+        [disabled]="updatingGroup || !editForm.name">
+        <i class="pi pi-spin pi-spinner" *ngIf="updatingGroup"></i>
+        {{ updatingGroup ? 'Updating...' : 'Update Group' }}
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Group Details Dialog -->
+  <p-dialog 
+    header="Group Details" 
+    [(visible)]="showGroupDetailsDialog" 
+    [modal]="true" 
+    [style]="{width: '600px'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div class="dialog-content" *ngIf="selectedGroup">
+      <div class="detail-section">
+        <h3>Basic Information</h3>
+        <div class="detail-row">
+          <span class="detail-label">Group Name:</span>
+          <span class="detail-value">{{ selectedGroup.Name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">SAM Account Name:</span>
+          <span class="detail-value">{{ selectedGroup.SamAccountName }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Description:</span>
+          <span class="detail-value">{{ selectedGroup.Description || 'No description' }}</span>
+        </div>
+        <div class="detail-row" *ngIf="selectedGroup.DistinguishedName">
+          <span class="detail-label">Location:</span>
+          <span class="detail-value">{{ formatDistinguishedName(selectedGroup.DistinguishedName) }}</span>
+        </div>
+      </div>
+      
+      <div class="detail-section" *ngIf="selectedGroup.Members && selectedGroup.Members.length > 0">
+        <h3>Members ({{ selectedGroup.Members.length }})</h3>
+        <div class="members-list">
+          <div 
+            class="member-item" 
+            *ngFor="let member of selectedGroup.Members; let i = index">
+            <span class="member-name">{{ member }}</span>
+            <button 
+              type="button" 
+              class="p-button p-button-text p-button-sm p-button-danger"
+              (click)="removeMemberFromGroup(selectedGroup, member)"
+              pTooltip="Remove Member">
+              <i class="pi pi-user-minus"></i>
+            </button>
           </div>
         </div>
       </div>
+      
+      <div class="detail-section" *ngIf="!selectedGroup.Members || selectedGroup.Members.length === 0">
+        <h3>Members</h3>
+        <p class="no-members">No members in this group</p>
+        <button 
+          type="button" 
+          class="p-button p-button-primary"
+          (click)="openAddMemberDialog(selectedGroup)">
+          <i class="pi pi-user-plus"></i>
+          Add First Member
+        </button>
+      </div>
     </div>
-  </div>
+  </p-dialog>
 
   <!-- Add Member Dialog -->
-  <div class="modal" *ngIf="showAddMemberDialog" (click)="showAddMemberDialog = false">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Add Member to Group</h3>
-        <button class="close-btn" (click)="showAddMemberDialog = false">
-          <i class="pi pi-times"></i>
-        </button>
+  <p-dialog 
+    header="Add Member to Group" 
+    [(visible)]="showAddMemberDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div class="dialog-content" *ngIf="selectedGroupForMember">
+      <div class="form-group">
+        <label for="selectUser">Select User *</label>
+        <select 
+          id="selectUser"
+          [(ngModel)]="selectedUser"
+          [disabled]="addingMember"
+          class="form-select">
+          <option [ngValue]="null">Select a user to add</option>
+          <option *ngFor="let user of users" [ngValue]="user">
+            {{ user.Name }} ({{ user.SamAccountName }})
+          </option>
+        </select>
       </div>
       
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Username (SamAccountName):</label>
-          <input 
-            type="text" 
-            [(ngModel)]="newMember.user_samaccountname"
-            placeholder="Enter username">
-        </div>
-        
-        <div class="modal-actions">
-          <button class="btn-secondary" (click)="showAddMemberDialog = false">Cancel</button>
-          <button class="btn-primary" (click)="submitAddMember()">Add Member</button>
-        </div>
+      <div class="info-box" *ngIf="selectedGroupForMember">
+        <p><strong>Adding to:</strong> {{ selectedGroupForMember.Name }}</p>
       </div>
     </div>
-  </div>
+    
+    <ng-template pTemplate="footer">
+      <button 
+        type="button" 
+        class="p-button p-button-text" 
+        (click)="showAddMemberDialog = false"
+        [disabled]="addingMember">
+        Cancel
+      </button>
+      <button 
+        type="button" 
+        class="p-button p-button-primary" 
+        (click)="addMemberToGroup()"
+        [disabled]="addingMember || !selectedUser">
+        <i class="pi pi-spin pi-spinner" *ngIf="addingMember"></i>
+        {{ addingMember ? 'Adding...' : 'Add Member' }}
+      </button>
+    </ng-template>
+  </p-dialog>
 
   <!-- Move Group Dialog -->
-  <div class="modal" *ngIf="showMoveGroupDialog" (click)="showMoveGroupDialog = false">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Move Group</h3>
-        <button class="close-btn" (click)="showMoveGroupDialog = false">
-          <i class="pi pi-times"></i>
-        </button>
+  <p-dialog 
+    header="Move Group" 
+    [(visible)]="showMoveGroupDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [draggable]="false" 
+    [resizable]="false">
+    
+    <div class="dialog-content" *ngIf="selectedGroupForMove">
+      <div class="form-group">
+        <label for="targetOU">Target Organizational Unit *</label>
+        <select 
+          id="targetOU"
+          [(ngModel)]="selectedTargetOU"
+          [disabled]="movingGroup"
+          class="form-select">
+          <option [ngValue]="null">Select target OU</option>
+          <option *ngFor="let ou of organizationalUnits" [ngValue]="ou">
+            {{ ou.Name }}
+          </option>
+        </select>
       </div>
       
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Target Organizational Unit:</label>
-          <select [(ngModel)]="moveRequest.target_ou">
-            <option value="">Select an OU</option>
-            <option *ngFor="let ou of availableOUs" [value]="ou.DistinguishedName">
-              {{ ou.Name }} ({{ ou.DistinguishedName }})
-            </option>
-          </select>
-        </div>
-        
-        <div class="modal-actions">
-          <button class="btn-secondary" (click)="showMoveGroupDialog = false">Cancel</button>
-          <button class="btn-primary" (click)="submitMoveGroup()">Move Group</button>
-        </div>
+      <div class="info-box">
+        <p><strong>Moving:</strong> {{ selectedGroupForMove.Name }}</p>
+        <p><strong>Current Location:</strong> {{ formatDistinguishedName(selectedGroupForMove.DistinguishedName || '') }}</p>
+        <p><strong>Target Location:</strong> {{ selectedTargetOU ? selectedTargetOU.Name : 'Not selected' }}</p>
       </div>
     </div>
-  </div>
+    
+    <ng-template pTemplate="footer">
+      <button 
+        type="button" 
+        class="p-button p-button-text" 
+        (click)="showMoveGroupDialog = false"
+        [disabled]="movingGroup">
+        Cancel
+      </button>
+      <button 
+        type="button" 
+        class="p-button p-button-primary" 
+        (click)="moveGroup()"
+        [disabled]="movingGroup || !selectedTargetOU">
+        <i class="pi pi-spin pi-spinner" *ngIf="movingGroup"></i>
+        {{ movingGroup ? 'Moving...' : 'Move Group' }}
+      </button>
+    </ng-template>
+  </p-dialog>
 </div> 

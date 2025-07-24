@@ -19,6 +19,33 @@
       font-size: 1.8rem;
       font-weight: 600;
     }
+    
+    .add-user-btn {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background-color 0.2s;
+      
+      &:hover {
+        background-color: #218838;
+      }
+      
+      &:active {
+        background-color: #1e7e34;
+      }
+      
+      i {
+        font-size: 0.8rem;
+      }
+    }
   }
 
   .search-filter-section {
@@ -326,5 +353,308 @@
     background: #f8f9fa;
     border-top: 1px solid #dee2e6;
     padding: 1rem 1.5rem;
+  }
+}
+
+/* Add User Form Styles */
+.add-user-form {
+  padding: 1rem 0;
+  
+  .form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+  
+  .form-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    
+    &.full-width {
+      flex: 1;
+    }
+    
+    label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #333;
+      font-size: 0.9rem;
+      
+      &.checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-weight: normal;
+        
+        input[type="checkbox"] {
+          margin-right: 0.5rem;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
+      }
+    }
+    
+    input, select, textarea {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      
+      &:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+      }
+      
+      &:disabled {
+        background-color: #f8f9fa;
+        color: #6c757d;
+        cursor: not-allowed;
+      }
+      
+      &::placeholder {
+        color: #adb5bd;
+      }
+    }
+    
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+    
+    .ou-select {
+      background-color: white;
+      
+      option {
+        padding: 0.5rem;
+      }
+    }
+    
+    .loading-text {
+      color: #6c757d;
+      font-style: italic;
+      margin-top: 0.25rem;
+    }
+    
+    .selected-ou {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background-color: #e3f2fd;
+      border-radius: 4px;
+      border-left: 3px solid #2196f3;
+      
+      .ou-dn {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #666;
+        word-break: break-all;
+      }
+    }
+  }
+}
+
+/* Form Validation Styles */
+.form-group {
+  &.ng-invalid.ng-touched {
+    input, select, textarea {
+      border-color: #dc3545;
+      
+      &:focus {
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+      }
+    }
+  }
+  
+  &.ng-valid.ng-touched {
+    input, select, textarea {
+      border-color: #28a745;
+      
+      &:focus {
+        box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+      }
+    }
+  }
+}
+
+/* Dialog Footer Styles */
+:host ::ng-deep .p-dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+  
+  .p-button {
+    margin-left: 0.5rem;
+    
+    &:first-child {
+      margin-left: 0;
+    }
+  }
+}
+
+/* Responsive Dialog */
+@media (max-width: 768px) {
+  :host ::ng-deep .p-dialog {
+    width: 95vw !important;
+    margin: 1rem;
+    
+    .p-dialog-content {
+      padding: 1rem;
+    }
+  }
+  
+  .add-user-form {
+    .form-row {
+      margin-bottom: 0.75rem;
+    }
+    
+    .form-group {
+      margin-bottom: 0.5rem;
+      
+      label {
+        font-size: 0.85rem;
+      }
+      
+      input, select, textarea {
+        padding: 0.6rem;
+        font-size: 0.85rem;
+      }
+    }
+  }
+}
+
+/* Loading States */
+.creating-user {
+  .add-user-form {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+}
+
+/* Simple Dialog Styles */
+.simple-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.simple-dialog {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  
+  .dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+    
+    h2 {
+      margin: 0;
+      color: #333;
+      font-size: 1.5rem;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      &:hover {
+        color: #333;
+      }
+    }
+  }
+  
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      
+      &.btn-primary {
+        background-color: #007bff;
+        color: white;
+        
+        &:hover:not(:disabled) {
+          background-color: #0056b3;
+        }
+        
+        &:disabled {
+          background-color: #6c757d;
+          cursor: not-allowed;
+        }
+      }
+      
+      &.btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        
+        &:hover:not(:disabled) {
+          background-color: #545b62;
+        }
+        
+        &:disabled {
+          background-color: #adb5bd;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}
+
+/* Success/Error States */
+.form-success {
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    border-color: #28a745;
+  }
+}
+
+.form-error {
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    border-color: #dc3545;
   }
 }
