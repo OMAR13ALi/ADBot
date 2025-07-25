@@ -12,13 +12,20 @@ class ADGroupUpdate(BaseModel):
     description: Optional[str] = None
 
 class ADGroupResponse(BaseModel):
-    name: str
-    samaccountname: str
-    description: Optional[str] = None
-    members: Optional[List[str]] = None
+    Name: str
+    SamAccountName: str
+    Description: Optional[str] = None
+    Members: Optional[List[str]] = None
+    DistinguishedName: Optional[str] = None
 
 class ADGroupMember(BaseModel):
     user_samaccountname: str
 
 class ADGroupMove(BaseModel):
-    target_ou: str 
+    target_ou: str
+
+class ADGroupList(BaseModel):
+    """Schema for listing groups with pagination info"""
+    groups: list[ADGroupResponse]
+    count: int
+    status: str = "success" 

@@ -104,11 +104,36 @@ def create_user(user: ADUserCreate):
         if user.ou and user.ou.strip() and user.ou.lower() != "none":
             ou_param = f'-Path "{user.ou}"'
         
+        # Build additional parameters
+        additional_params = []
+        if user.description:
+            additional_params.append(f'-Description "{user.description}"')
+        if user.email:
+            additional_params.append(f'-EmailAddress "{user.email}"')
+        if user.given_name:
+            additional_params.append(f'-GivenName "{user.given_name}"')
+        if user.surname:
+            additional_params.append(f'-Surname "{user.surname}"')
+        if user.display_name:
+            additional_params.append(f'-DisplayName "{user.display_name}"')
+        if user.user_principal_name:
+            additional_params.append(f'-UserPrincipalName "{user.user_principal_name}"')
+        if user.department:
+            additional_params.append(f'-Department "{user.department}"')
+        if user.title:
+            additional_params.append(f'-Title "{user.title}"')
+        if user.phone:
+            additional_params.append(f'-OfficePhone "{user.phone}"')
+        if user.manager:
+            additional_params.append(f'-Manager "{user.manager}"')
+        
+        additional_params_str = ' '.join(additional_params)
+        
         ps_command = f'''
         try {{
             Import-Module ActiveDirectory -ErrorAction Stop
             $SecurePass = ConvertTo-SecureString "{user.password}" -AsPlainText -Force
-            New-ADUser -Name "{user.name}" -SamAccountName "{user.samaccountname}" -AccountPassword $SecurePass -Enabled {enabled_ps} {ou_param}
+            New-ADUser -Name "{user.name}" -SamAccountName "{user.samaccountname}" -AccountPassword $SecurePass -Enabled {enabled_ps} {ou_param} {additional_params_str}
             Write-Output "User created successfully"
         }} catch {{
             Write-Error "PowerShell Error: $($_.Exception.Message)"
@@ -231,6 +256,10 @@ def get_user_details(samaccountname: str) -> dict:
                 LastLogonDate = if ($user.LastLogonDate) {{ $user.LastLogonDate.ToString('yyyy-MM-dd HH:mm:ss') }} else {{ "Never" }}
                 Description = $user.Description
                 EmailAddress = $user.EmailAddress
+                GivenName = $user.GivenName
+                Surname = $user.Surname
+                DisplayName = $user.DisplayName
+                UserPrincipalName = $user.UserPrincipalName
                 Department = $user.Department
                 Title = $user.Title
                 OfficePhone = $user.OfficePhone
@@ -284,10 +313,14 @@ def update_user(samaccountname: str, user: ADUserUpdate):
             set_params.append(f'-AccountPassword (ConvertTo-SecureString "{user.password}" -AsPlainText -Force)')
             changes_made.append("Password: Updated")
             
+        logger.info(f"Checking enabled field: user.enabled={user.enabled}, current_user.Enabled={current_user.get('Enabled')}")
         if user.enabled is not None and user.enabled != current_user.get("Enabled"):
             enabled_value = "$true" if user.enabled else "$false"
             set_params.append(f'-Enabled {enabled_value}')
             changes_made.append(f"Enabled: {current_user.get('Enabled')} -> {user.enabled}")
+            logger.info(f"Enabled field will be updated: {enabled_value}")
+        else:
+            logger.info(f"Enabled field unchanged or not provided")
             
         if user.description is not None and user.description != current_user.get("Description"):
             set_params.append(f'-Description "{user.description}"')
@@ -296,6 +329,22 @@ def update_user(samaccountname: str, user: ADUserUpdate):
         if user.email is not None and user.email != current_user.get("EmailAddress"):
             set_params.append(f'-EmailAddress "{user.email}"')
             changes_made.append(f"Email: '{current_user.get('EmailAddress', '')}' -> '{user.email}'")
+            
+        if user.given_name is not None and user.given_name != current_user.get("GivenName"):
+            set_params.append(f'-GivenName "{user.given_name}"')
+            changes_made.append(f"Given Name: '{current_user.get('GivenName', '')}' -> '{user.given_name}'")
+            
+        if user.surname is not None and user.surname != current_user.get("Surname"):
+            set_params.append(f'-Surname "{user.surname}"')
+            changes_made.append(f"Surname: '{current_user.get('Surname', '')}' -> '{user.surname}'")
+            
+        if user.display_name is not None and user.display_name != current_user.get("DisplayName"):
+            set_params.append(f'-DisplayName "{user.display_name}"')
+            changes_made.append(f"Display Name: '{current_user.get('DisplayName', '')}' -> '{user.display_name}'")
+            
+        if user.user_principal_name is not None and user.user_principal_name != current_user.get("UserPrincipalName"):
+            set_params.append(f'-UserPrincipalName "{user.user_principal_name}"')
+            changes_made.append(f"User Principal Name: '{current_user.get('UserPrincipalName', '')}' -> '{user.user_principal_name}'")
             
         if user.department is not None and user.department != current_user.get("Department"):
             set_params.append(f'-Department "{user.department}"')
@@ -323,6 +372,8 @@ def update_user(samaccountname: str, user: ADUserUpdate):
         
         # Execute update
         set_params_str = ' '.join(set_params)
+        logger.info(f"Update parameters: {set_params_str}")
+        logger.info(f"Changes to be made: {changes_made}")
         ps_command = f'''
         try {{
             Import-Module ActiveDirectory -ErrorAction Stop
@@ -546,10 +597,10 @@ def list_users(
         ps_command = f'''
         try {{
             Import-Module ActiveDirectory -ErrorAction Stop
-            $users = Get-ADUser -Filter "{filter_string}" -Properties Name, SamAccountName, Enabled, LastLogonDate, Description, Department |
+            $users = Get-ADUser -Filter "{filter_string}" -Properties Name, SamAccountName, Enabled, LastLogonDate, Description, Department, GivenName, Surname, DisplayName, UserPrincipalName |
                      Select-Object Name, SamAccountName, Enabled, 
                      @{{Name='LastLogonDate'; Expression={{if ($_.LastLogonDate) {{$_.LastLogonDate.ToString('yyyy-MM-dd HH:mm:ss')}} else {{'Never'}}}}}},
-                     Description, Department |
+                     Description, Department, GivenName, Surname, DisplayName, UserPrincipalName |
                      Sort-Object Name |
                      Select-Object -First {limit}
             if ($users.Count -eq 0) {{

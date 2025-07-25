@@ -23,6 +23,8 @@ export class MainLayoutComponent {
         return 'User Management';
       case '/groups':
         return 'Group Management';
+      case '/ous':
+        return 'Organizational Units Management';
       case '/computers':
         return 'Computer Management';
       case '/settings':
@@ -41,6 +43,8 @@ export class MainLayoutComponent {
         return 'Manage user accounts and permissions';
       case '/groups':
         return 'Create and manage security groups';
+      case '/ous':
+        return 'Create and manage organizational units';
       case '/computers':
         return 'Monitor and manage domain computers';
       case '/settings':

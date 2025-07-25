@@ -2,12 +2,19 @@
   <!-- Header Section -->
   <div class="header-section">
     <h1>User Management</h1>
-    <p-button 
-      label="Add New User" 
-      icon="pi pi-plus" 
-      severity="success"
-      (onClick)="showUserDetailDialog = true">
-    </p-button>
+    <button 
+      class="add-user-btn"
+      (click)="openAddUserDialog()">
+      <i class="pi pi-plus"></i>
+      Add New User
+    </button>
+    
+    <!-- Test button -->
+    <button 
+      style="background: red; color: white; margin-left: 10px; padding: 10px;"
+      (click)="showAddUserDialog = true">
+      Test Dialog
+    </button>
   </div>
 
   <!-- Search and Filter Section -->
@@ -146,17 +153,196 @@
           <div class="empty-state">
             <i class="pi pi-users" style="font-size: 3rem; color: #ccc;"></i>
             <p>No users found</p>
-            <p-button 
-              label="Add First User" 
-              icon="pi pi-plus" 
-              severity="success"
-              (onClick)="showUserDetailDialog = true">
-            </p-button>
+            <button 
+              class="add-user-btn"
+              (click)="openAddUserDialog()">
+              <i class="pi pi-plus"></i>
+              Add First User
+            </button>
           </div>
         </td>
       </tr>
     </ng-template>
   </p-table>
+
+  <!-- Add New User Dialog -->
+  <div *ngIf="showAddUserDialog" class="simple-dialog-overlay" (click)="showAddUserDialog = false">
+    <div class="simple-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Add New User</h2>
+        <button (click)="showAddUserDialog = false" class="close-btn">&times;</button>
+      </div>
+      
+      <!-- Debug info -->
+      <div style="background: yellow; padding: 10px; margin-bottom: 10px;">
+        Debug: Dialog visible = {{ showAddUserDialog }}
+      </div>
+    
+    <div class="add-user-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Full Name *</label>
+          <input 
+            pInputText 
+            id="name"
+            type="text" 
+            [(ngModel)]="newUser.name"
+            placeholder="Enter full name"
+            [disabled]="creatingUser">
+        </div>
+        
+        <div class="form-group">
+          <label for="samaccountname">Username *</label>
+          <input 
+            pInputText 
+            id="samaccountname"
+            type="text" 
+            [(ngModel)]="newUser.samaccountname"
+            placeholder="Enter username"
+            [disabled]="creatingUser">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="password">Password *</label>
+          <input 
+            pInputText 
+            id="password"
+            type="password" 
+            [(ngModel)]="newUser.password"
+            placeholder="Enter password (min 8 characters)"
+            [disabled]="creatingUser">
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input 
+            pInputText 
+            id="email"
+            type="email" 
+            [(ngModel)]="newUser.email"
+            placeholder="Enter email address"
+            [disabled]="creatingUser">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="department">Department</label>
+          <input 
+            pInputText 
+            id="department"
+            type="text" 
+            [(ngModel)]="newUser.department"
+            placeholder="Enter department"
+            [disabled]="creatingUser">
+        </div>
+        
+        <div class="form-group">
+          <label for="title">Job Title</label>
+          <input 
+            pInputText 
+            id="title"
+            type="text" 
+            [(ngModel)]="newUser.title"
+            placeholder="Enter job title"
+            [disabled]="creatingUser">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input 
+            pInputText 
+            id="phone"
+            type="text" 
+            [(ngModel)]="newUser.phone"
+            placeholder="Enter phone number"
+            [disabled]="creatingUser">
+        </div>
+        
+        <div class="form-group">
+          <label for="manager">Manager</label>
+          <input 
+            pInputText 
+            id="manager"
+            type="text" 
+            [(ngModel)]="newUser.manager"
+            placeholder="Enter manager username"
+            [disabled]="creatingUser">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group full-width">
+          <label for="description">Description</label>
+          <textarea 
+            pInputText 
+            id="description"
+            [(ngModel)]="newUser.description"
+            placeholder="Enter user description"
+            rows="3"
+            [disabled]="creatingUser">
+          </textarea>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="ou">Organizational Unit</label>
+          <select 
+            id="ou"
+            [(ngModel)]="selectedOU"
+            [disabled]="creatingUser || loadingOUs"
+            class="ou-select">
+            <option [ngValue]="null">Default Container (Users)</option>
+            <option 
+              *ngFor="let ou of availableOUs" 
+              [ngValue]="ou"
+              [attr.data-dn]="ou.DistinguishedName">
+              {{ ou.Name }}
+              <span *ngIf="ou.Description"> - {{ ou.Description }}</span>
+            </option>
+          </select>
+          <small *ngIf="loadingOUs" class="loading-text">Loading OUs...</small>
+          <small *ngIf="selectedOU" class="selected-ou">
+            Selected: {{ selectedOU.Name }}
+            <br>
+            <span class="ou-dn">{{ selectedOU.DistinguishedName }}</span>
+          </small>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              [(ngModel)]="newUser.enabled"
+              [disabled]="creatingUser">
+            <span class="checkmark"></span>
+            Account Enabled
+          </label>
+        </div>
+      </div>
+    </div>
+    
+      <div class="dialog-footer">
+        <button 
+          (click)="showAddUserDialog = false" 
+          [disabled]="creatingUser"
+          class="btn btn-secondary">
+          Cancel
+        </button>
+        <button 
+          (click)="createUser()"
+          [disabled]="creatingUser"
+          class="btn btn-primary">
+          Create User
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- User Detail Dialog -->
   <p-dialog 
