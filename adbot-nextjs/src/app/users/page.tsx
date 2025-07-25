@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Search, Plus, RefreshCw, Eye, Edit, Trash2 } from 'lucide-react';
+import { Loader2, Search, Plus, RefreshCw, Eye, Edit, Trash2, Shield } from 'lucide-react';
 import { UserForm } from '@/components/users/user-form';
 import { UserDetails } from '@/components/users/user-details';
+import { UserStatusModal } from '@/components/users/user-status-modal';
 import { MoveModal } from '@/components/shared/move-modal';
 
 export default function UsersPage() {
@@ -22,6 +23,7 @@ export default function UsersPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -222,9 +224,96 @@ export default function UsersPage() {
                         </code>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.Enabled ? "default" : "secondary"}>
-                          {user.Enabled ? "Enabled" : "Disabled"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={user.Enabled ? "default" : "secondary"}>
+                            {user.Enabled ? "Enabled" : "Disabled"}
+                          </Badge>
+                          {user.Enabled ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  setActionLoading(true);
+                                  const response = await usersService.disableUser(user.SamAccountName);
+                                  
+                                  if (response.error) {
+                                    setError(response.error);
+                                  } else {
+                                    setError('');
+                                    loadUsers(); // Refresh the list
+                                  }
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : 'Failed to disable user');
+                                } finally {
+                                  setActionLoading(false);
+                                }
+                              }}
+                              disabled={actionLoading}
+                            >
+                              Disable
+                            </Button>
+                          ) : (
+                            <div className="flex gap-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    setActionLoading(true);
+                                    // Try standard enable first
+                                    let response = await usersService.enableUser(user.SamAccountName);
+                                    
+                                    // If standard enable fails due to password policy, try force enable
+                                    if (response.error && response.error.includes && response.error.includes('password')) {
+                                      response = await usersService.forceEnableUser(user.SamAccountName);
+                                    }
+                                    
+                                    if (response.error) {
+                                      setError(response.error);
+                                    } else {
+                                      setError('');
+                                      loadUsers(); // Refresh the list
+                                    }
+                                  } catch (err) {
+                                    setError(err instanceof Error ? err.message : 'Failed to enable user');
+                                  } finally {
+                                    setActionLoading(false);
+                                  }
+                                }}
+                                disabled={actionLoading}
+                                title="Enable user account"
+                              >
+                                Enable
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    setActionLoading(true);
+                                    const response = await usersService.forceEnableUser(user.SamAccountName);
+                                    
+                                    if (response.error) {
+                                      setError(response.error);
+                                    } else {
+                                      setError('');
+                                      loadUsers(); // Refresh the list
+                                    }
+                                  } catch (err) {
+                                    setError(err instanceof Error ? err.message : 'Failed to force enable user');
+                                  } finally {
+                                    setActionLoading(false);
+                                  }
+                                }}
+                                disabled={actionLoading}
+                                title="Force enable (bypasses password policy)"
+                              >
+                                Force
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {user.Description || "No description"}
@@ -236,14 +325,28 @@ export default function UsersPage() {
                             size="sm"
                             onClick={() => handleViewUser(user)}
                             disabled={actionLoading}
+                            title="View Details"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowStatusModal(true);
+                            }}
+                            disabled={actionLoading}
+                            title="View Status"
+                          >
+                            <Shield className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
                             onClick={() => handleEditUser(user)}
                             disabled={actionLoading}
+                            title="Edit User"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -252,6 +355,7 @@ export default function UsersPage() {
                             size="sm"
                             onClick={() => handleDeleteUser(user)}
                             disabled={actionLoading}
+                            title="Delete User"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -307,6 +411,18 @@ export default function UsersPage() {
             setSelectedUser(null);
             handleDeleteUser(selectedUser);
           }}
+        />
+      )}
+
+      {showStatusModal && selectedUser && (
+        <UserStatusModal
+          username={selectedUser.SamAccountName}
+          isOpen={showStatusModal}
+          onClose={() => {
+            setShowStatusModal(false);
+            setSelectedUser(null);
+          }}
+          onUserUpdated={loadUsers}
         />
       )}
 

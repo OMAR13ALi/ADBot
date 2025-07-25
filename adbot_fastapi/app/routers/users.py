@@ -7,6 +7,8 @@ from app.models.user_schemas import (
     ADUserCreate, ADUserUpdate, ADUserResponse, ADUserSearch, 
     ADUserMove, ADUserPasswordReset, ADOrganizationalUnit
 )
+from datetime import datetime
+from urllib.parse import unquote
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -94,15 +96,19 @@ def get_default_user_container():
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post("/users")
-
 def create_user(user: ADUserCreate):
-    """Create a new user with detailed feedback"""
+    """Create a new user with detailed feedback and OU validation"""
     enabled_ps = "$true" if user.enabled else "$false"
     try:
-        # Handle optional OU parameter
+        # Handle optional OU parameter with validation
         ou_param = ""
         if user.ou and user.ou.strip() and user.ou.lower() != "none":
+            # Log the OU being used
+            logger.info(f"Using OU for user creation: {user.ou}")
             ou_param = f'-Path "{user.ou}"'
+            logger.info(f"OU parameter set to: {ou_param}")
+        else:
+            logger.info("No OU specified, user will be created in default Users container")
         
         # Build additional parameters
         additional_params = []
@@ -129,33 +135,88 @@ def create_user(user: ADUserCreate):
         
         additional_params_str = ' '.join(additional_params)
         
+        # Log the complete command for debugging
+        logger.info(f"Creating user: {user.samaccountname} with OU param: '{ou_param}'")
+        
         ps_command = f'''
         try {{
             Import-Module ActiveDirectory -ErrorAction Stop
             $SecurePass = ConvertTo-SecureString "{user.password}" -AsPlainText -Force
+            
+            Write-Output "Starting user creation..."
+            Write-Output "OU Parameter: {ou_param}"
+            Write-Output "Additional Parameters: {additional_params_str}"
+            
+            # Create the user
             New-ADUser -Name "{user.name}" -SamAccountName "{user.samaccountname}" -AccountPassword $SecurePass -Enabled {enabled_ps} {ou_param} {additional_params_str}
-            Write-Output "User created successfully"
+            
+            Write-Output "User creation command completed"
+            
+            # Verify user creation and location
+            $createdUser = Get-ADUser -Identity "{user.samaccountname}" -Properties DistinguishedName
+            $userLocation = $createdUser.DistinguishedName
+            
+            Write-Output "User found at: $userLocation"
+            
+            $result = @{{
+                Message = "User created successfully"
+                UserLocation = $userLocation
+                RequestedOU = "{user.ou if user.ou else 'Default Users container'}"
+                Success = $true
+            }}
+            
+            $result | ConvertTo-Json
         }} catch {{
+            Write-Output "Error occurred: $($_.Exception.Message)"
+            Write-Output "Error type: $($_.Exception.GetType().Name)"
+            
+            $errorResult = @{{
+                Message = "User creation failed"
+                Error = $_.Exception.Message
+                ErrorType = $_.Exception.GetType().Name
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json
             Write-Error "PowerShell Error: $($_.Exception.Message)"
             exit 1
         }}
         '''
+        
         stdout, stderr, rc = execute_remote_ps(ps_command)
         if rc != 0:
             logger.error(f"PowerShell command failed: {stderr}")
-            raise HTTPException(status_code=500, detail=f"PowerShell command failed: {stderr}")
+            raise HTTPException(status_code=500, detail=f"User creation failed: {stderr}")
+        
+        # Parse the result to check user location
+        try:
+            creation_result = json.loads(stdout)
+            logger.info(f"User creation result: {creation_result}")
+            
+            # Check if user was created in the expected location
+            if user.ou and user.ou.strip() and user.ou.lower() != "none":
+                user_location = creation_result.get("UserLocation", "")
+                if user.ou.lower() not in user_location.lower():
+                    logger.warning(f"User created in unexpected location. Expected OU: {user.ou}, Actual location: {user_location}")
+            
+        except json.JSONDecodeError:
+            logger.warning("Could not parse user creation result")
+            creation_result = {"Message": "User created successfully", "Success": True}
         
         # Get the created user details
         try:
             created_user_response = get_user(user.samaccountname)
-            created_user = created_user_response["user"]
             return {
                 "message": "User created successfully",
-                "user": created_user
+                "user": created_user_response.get("user"),
+                "creation_details": creation_result,
+                "status": "success"
             }
         except:
-            # If we can't get the user details, still return success
-            return {"message": stdout.strip() or "User created successfully"}
+            return {
+                "message": "User created successfully", 
+                "creation_details": creation_result,
+                "status": "success"
+            }
             
     except Exception as e:
         logger.error(f"Error creating user: {str(e)}")
@@ -513,66 +574,412 @@ def delete_user(samaccountname: str):
         logger.error(f"Error deleting user: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-# from fastapi import APIRouter, HTTPException, Query
-# import json
-# import logging
-# from typing import Optional
-# from app.core.powershell_client import execute_remote_ps
-# from app.models.user_schemas import ADUserCreate, ADUserUpdate
-
-# router = APIRouter()
-# logger = logging.getLogger(__name__)
-
-# @router.get("/users/{samaccountname}")
-# def get_user(samaccountname: str):
-#     """Get detailed information about a specific user"""
-#     try:
-#         ps_command = f'''
-#         try {{
-#            Import-Module ActiveDirectory -ErrorAction Stop
-#              $user = Get-ADUser -Identity "{samaccountname}" -Properties Name, SamAccountName, Enabled, LastLogonDate, Description, EmailAddress, Department, Title, Manager, DistinguishedName, Created, Modified
-#              if ($user) {{
-#                  $userInfo = @{{
-#                      Name = $user.Name
-#                      SamAccountName = $user.SamAccountName
-#                      Enabled = $user.Enabled
-#                      LastLogonDate = if ($user.LastLogonDate) {{ $user.LastLogonDate.ToString('yyyy-MM-dd HH:mm:ss') }} else {{ $null }}
-#                      Description = $user.Description
-#                      EmailAddress = $user.EmailAddress
-#                      Department = $user.Department
-#                      Title = $user.Title
-#                      Manager = $user.Manager
-#                      DistinguishedName = $user.DistinguishedName
-#                      Created = $user.Created.ToString('yyyy-MM-dd HH:mm:ss')
-#                      Modified = $user.Modified.ToString('yyyy-MM-dd HH:mm:ss')
-#                  }}
-#                  $userInfo | ConvertTo-Json -Depth 2
-#              }} else {{
-#                  Write-Error "User not found"
-#                  exit 1
-#              }}
-#          }} catch {{
-#              Write-Error "PowerShell Error: $($_.Exception.Message)"
-#              exit 1
-#          }}
-#          '''
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         if rc != 0:
-#             logger.error(f"PowerShell command failed: {stderr}")
-#             raise HTTPException(status_code=404, detail=f"User not found or error: {stderr}")
+@router.put("/users/enable/{samaccountname}")
+def enable_user(samaccountname: str):
+    """Enable a user account"""
+    try:
+        logger.info(f"Enabling user: {samaccountname}")
         
-#         try:
-#             user_data = json.loads(stdout)
-#             return {"user": user_data, "status": "success"}
-#         except json.JSONDecodeError as e:
-#             logger.error(f"JSON decode error: {str(e)}")
-#             raise HTTPException(status_code=500, detail="Failed to parse user data")
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
             
-#     except Exception as e:
-#         logger.error(f"Error getting user: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+            # Check if user exists first
+            $user = Get-ADUser -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Enable the user account
+            Enable-ADAccount -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Verify the change
+            $updatedUser = Get-ADUser -Identity "{samaccountname}" -Properties Enabled -ErrorAction Stop
+            
+            $result = @{{
+                Message = "User enabled successfully"
+                SamAccountName = $updatedUser.SamAccountName
+                Name = $updatedUser.Name
+                Enabled = $updatedUser.Enabled
+                Success = $true
+            }}
+            
+            $result | ConvertTo-Json -Depth 3
+        }} catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {{
+            $errorResult = @{{
+                Message = "User not found"
+                Error = "User '{samaccountname}' does not exist in Active Directory"
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }} catch {{
+            $errorResult = @{{
+                Message = "Failed to enable user"
+                Error = $_.Exception.Message
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        
+        if rc != 0:
+            logger.error(f"Enable user failed - Return code: {rc}, stderr: {stderr}")
+            try:
+                error_result = json.loads(stdout) if stdout else {"error": stderr}
+                raise HTTPException(status_code=500, detail=error_result)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=500, detail=f"Failed to enable user: {stderr}")
+        
+        try:
+            result = json.loads(stdout)
+            logger.info(f"User {samaccountname} enabled successfully: {result}")
+            return {
+                "operation": "enable",
+                "samaccountname": samaccountname,
+                "result": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON decode error, but operation might have succeeded: {e}")
+            return {
+                "operation": "enable",
+                "samaccountname": samaccountname,
+                "message": "User enabled successfully",
+                "raw_output": stdout,
+                "status": "success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error enabling user {samaccountname}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/users/disable/{samaccountname}")
+def disable_user(samaccountname: str):
+    """Disable a user account"""
+    try:
+        logger.info(f"Disabling user: {samaccountname}")
+        
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            # Check if user exists first
+            $user = Get-ADUser -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Disable the user account
+            Disable-ADAccount -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Verify the change
+            $updatedUser = Get-ADUser -Identity "{samaccountname}" -Properties Enabled -ErrorAction Stop
+            
+            $result = @{{
+                Message = "User disabled successfully"
+                SamAccountName = $updatedUser.SamAccountName
+                Name = $updatedUser.Name
+                Enabled = $updatedUser.Enabled
+                Success = $true
+            }}
+            
+            $result | ConvertTo-Json -Depth 3
+        }} catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {{
+            $errorResult = @{{
+                Message = "User not found"
+                Error = "User '{samaccountname}' does not exist in Active Directory"
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }} catch {{
+            $errorResult = @{{
+                Message = "Failed to disable user"
+                Error = $_.Exception.Message
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        
+        if rc != 0:
+            logger.error(f"Disable user failed - Return code: {rc}, stderr: {stderr}")
+            try:
+                error_result = json.loads(stdout) if stdout else {"error": stderr}
+                raise HTTPException(status_code=500, detail=error_result)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=500, detail=f"Failed to disable user: {stderr}")
+        
+        try:
+            result = json.loads(stdout)
+            logger.info(f"User {samaccountname} disabled successfully: {result}")
+            return {
+                "operation": "disable",
+                "samaccountname": samaccountname,
+                "result": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON decode error, but operation might have succeeded: {e}")
+            return {
+                "operation": "disable",
+                "samaccountname": samaccountname,
+                "message": "User disabled successfully",
+                "raw_output": stdout,
+                "status": "success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error disabling user {samaccountname}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/users/status/{samaccountname}")
+def get_user_status(samaccountname: str):
+    """Get the current enabled/disabled status of a user"""
+    try:
+        logger.info(f"Getting status for user: {samaccountname}")
+        
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            $user = Get-ADUser -Identity "{samaccountname}" -Properties Enabled, Name, SamAccountName
+            $result = @{{
+                Name = $user.Name
+                SamAccountName = $user.SamAccountName
+                Enabled = $user.Enabled
+                Status = if ($user.Enabled) {{ "Enabled" }} else {{ "Disabled" }}
+            }}
+            
+            $result | ConvertTo-Json
+        }} catch {{
+            Write-Output "Error: $($_.Exception.Message)"
+            $errorResult = @{{
+                Message = "Failed to get user status"
+                Error = $_.Exception.Message
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json
+            Write-Error "PowerShell Error: $($_.Exception.Message)"
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        if rc != 0:
+            logger.error(f"Get user status failed: {stderr}")
+            raise HTTPException(status_code=404, detail=f"User not found: {stderr}")
+        
+        try:
+            result = json.loads(stdout)
+            return {
+                "user_status": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="Failed to parse user status")
+            
+    except Exception as e:
+        logger.error(f"Error getting user status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/users/test-ou-placement")
+def test_ou_placement(ou_dn: str):
+    """Test OU placement by creating a test user (for troubleshooting)"""
+    try:
+        test_username = f"test_user_{int(datetime.now().timestamp())}"
+        
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            # First validate the OU
+            $ou = Get-ADOrganizationalUnit -Identity "{ou_dn}" -ErrorAction Stop
+            Write-Output "OU exists: $($ou.DistinguishedName)"
+            
+            # Create a test user
+            $SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
+            New-ADUser -Name "Test User" -SamAccountName "{test_username}" -AccountPassword $SecurePass -Enabled $false -Path "{ou_dn}"
+            
+            # Check where the user was created
+            $createdUser = Get-ADUser -Identity "{test_username}" -Properties DistinguishedName
+            $userLocation = $createdUser.DistinguishedName
+            
+            # Clean up - delete the test user
+            Remove-ADUser -Identity "{test_username}" -Confirm:$false
+            
+            $result = @{{
+                Message = "OU placement test successful"
+                RequestedOU = "{ou_dn}"
+                ActualLocation = $userLocation
+                LocationMatch = $userLocation.Contains("{ou_dn}")
+                TestUserCreated = $true
+                TestUserDeleted = $true
+            }}
+            
+            $result | ConvertTo-Json
+        }} catch {{
+            $errorResult = @{{
+                Message = "OU placement test failed"
+                Error = $_.Exception.Message
+                RequestedOU = "{ou_dn}"
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json
+            Write-Error "PowerShell Error: $($_.Exception.Message)"
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        if rc != 0:
+            logger.error(f"OU placement test failed: {stderr}")
+            raise HTTPException(status_code=500, detail=f"OU placement test failed: {stderr}")
+        
+        try:
+            result = json.loads(stdout)
+            return {
+                "test_result": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError:
+            return {
+                "message": "OU placement test completed but could not parse result",
+                "raw_output": stdout,
+                "status": "partial_success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error testing OU placement: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/users/debug-ou/{samaccountname}")
+def debug_user_location(samaccountname: str):
+    """Debug where a user is actually located in AD"""
+    try:
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            $user = Get-ADUser -Identity "{samaccountname}" -Properties DistinguishedName, CanonicalName
+            
+            $userInfo = @{{
+                SamAccountName = $user.SamAccountName
+                DistinguishedName = $user.DistinguishedName
+                CanonicalName = $user.CanonicalName
+                ParentContainer = $user.DistinguishedName -replace "^CN=[^,]+,"
+            }}
+            
+            $userInfo | ConvertTo-Json
+        }} catch {{
+            Write-Error "PowerShell Error: $($_.Exception.Message)"
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        if rc != 0:
+            raise HTTPException(status_code=404, detail=f"User not found: {stderr}")
+        
+        try:
+            user_info = json.loads(stdout)
+            return {
+                "user_location": user_info,
+                "status": "success"
+            }
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="Failed to parse user location data")
+            
+    except Exception as e:
+        logger.error(f"Error debugging user location: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/users/validate-ou/{ou_dn}")
+def validate_ou(ou_dn: str):
+    """Validate if an OU exists and is accessible"""
+    try:
+        decoded_ou = unquote(ou_dn)
+        logger.info(f"Validating OU: {decoded_ou}")
+        
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            Write-Output "Validating OU: {decoded_ou}"
+            
+            # Try to get the OU
+            $ou = Get-ADOrganizationalUnit -Identity "{decoded_ou}" -ErrorAction Stop
+            
+            Write-Output "OU found successfully"
+            
+            # Check if we can create objects in this OU
+            $ouInfo = @{{
+                Name = $ou.Name
+                DistinguishedName = $ou.DistinguishedName
+                CanonicalName = $ou.CanonicalName
+                ProtectedFromAccidentalDeletion = $ou.ProtectedFromAccidentalDeletion
+                ObjectClass = $ou.ObjectClass
+                WhenCreated = $ou.WhenCreated.ToString('yyyy-MM-dd HH:mm:ss')
+            }}
+            
+            $ouInfo | ConvertTo-Json
+        }} catch {{
+            Write-Output "Error validating OU: $($_.Exception.Message)"
+            
+            $errorInfo = @{{
+                Error = $_.Exception.Message
+                ErrorType = $_.Exception.GetType().Name
+                RequestedOU = "{decoded_ou}"
+            }}
+            $errorInfo | ConvertTo-Json
+            Write-Error "OU validation failed: $($_.Exception.Message)"
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        
+        logger.info(f"OU validation stdout: {stdout}")
+        logger.info(f"OU validation stderr: {stderr}")
+        logger.info(f"OU validation return code: {rc}")
+        
+        if rc != 0:
+            try:
+                error_data = json.loads(stdout)
+                return {
+                    "valid": False,
+                    "error": error_data,
+                    "status": "error"
+                }
+            except:
+                return {
+                    "valid": False,
+                    "error": stderr,
+                    "status": "error"
+                }
+        
+        try:
+            ou_data = json.loads(stdout)
+            return {
+                "valid": True,
+                "ou_info": ou_data,
+                "status": "success"
+            }
+        except json.JSONDecodeError:
+            return {
+                "valid": False,
+                "error": "Could not parse OU data",
+                "raw_output": stdout,
+                "status": "error"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error validating OU: {str(e)}")
+        return {
+            "valid": False,
+            "error": str(e),
+            "status": "error"
+        }
 
 @router.get("/users")
 def list_users(
@@ -647,6 +1054,67 @@ def list_users(
             }
     except Exception as e:
         logger.error(f"Unexpected error in list_users: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/users/check-permissions")
+def check_ad_permissions():
+    """Simple permission check for enable/disable operations"""
+    try:
+        logger.info("Checking basic AD permissions")
+        
+        ps_command = '''
+        try {
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            # Get current user
+            $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+            
+            # Get domain info
+            $domain = Get-ADDomain
+            
+            # Try to get a test user
+            $testUser = Get-ADUser -Filter * -ResultSetSize 1 -ErrorAction Stop
+            
+            $result = @{
+                CurrentUser = $currentUser.Name
+                DomainName = $domain.Name
+                CanAccessAD = $true
+                Success = $true
+            }
+            
+            $result | ConvertTo-Json
+            
+        } catch {
+            $errorResult = @{
+                Error = $_.Exception.Message
+                Success = $false
+            }
+            $errorResult | ConvertTo-Json
+            Write-Error "Permission check failed: $($_.Exception.Message)"
+            exit 1
+        }
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        if rc != 0:
+            logger.error(f"Permission check failed: {stderr}")
+            raise HTTPException(status_code=500, detail=f"Permission check failed: {stderr}")
+        
+        try:
+            result = json.loads(stdout)
+            return {
+                "permission_check": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError:
+            return {
+                "message": "Permission check completed but could not parse result",
+                "raw_output": stdout,
+                "status": "partial_success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error checking permissions: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # @router.put("/users/{samaccountname}")
@@ -854,209 +1322,243 @@ def list_users(
 #     except Exception as e:
 #         return {"error": str(e)}
 
+# Bulk operations
+@router.put("/users/bulk-enable")
+def bulk_enable_users(samaccountnames: list[str]):
+    """Enable multiple user accounts"""
+    results = []
+    
+    for samaccountname in samaccountnames:
+        try:
+            result = enable_user(samaccountname)
+            results.append({
+                "samaccountname": samaccountname,
+                "success": True,
+                "result": result
+            })
+        except HTTPException as e:
+            results.append({
+                "samaccountname": samaccountname,
+                "success": False,
+                "error": str(e.detail)
+            })
+        except Exception as e:
+            results.append({
+                "samaccountname": samaccountname,
+                "success": False,
+                "error": str(e)
+            })
+    
+    return {
+        "operation": "bulk_enable",
+        "total": len(samaccountnames),
+        "successful": len([r for r in results if r["success"]]),
+        "failed": len([r for r in results if not r["success"]]),
+        "results": results
+    }
 
 
+@router.put("/users/bulk-disable")
+def bulk_disable_users(samaccountnames: list[str]):
+    """Disable multiple user accounts"""
+    results = []
+    
+    for samaccountname in samaccountnames:
+        try:
+            result = disable_user(samaccountname)
+            results.append({
+                "samaccountname": samaccountname,
+                "success": True,
+                "result": result
+            })
+        except HTTPException as e:
+            results.append({
+                "samaccountname": samaccountname,
+                "success": False,
+                "error": str(e.detail)
+            })
+        except Exception as e:
+            results.append({
+                "samaccountname": samaccountname,
+                "success": False,
+                "error": str(e)
+            })
+    
+    return {
+        "operation": "bulk_disable",
+        "total": len(samaccountnames),
+        "successful": len([r for r in results if r["success"]]),
+        "failed": len([r for r in results if not r["success"]]),
+        "results": results
+    }
+
+@router.put("/users/reset-and-enable/{samaccountname}")
+def reset_password_and_enable_user(samaccountname: str, new_password: str = "TempPassword123!"):
+    """Reset user password and enable account"""
+    try:
+        logger.info(f"Resetting password and enabling user: {samaccountname}")
         
-
-
-
-# from fastapi import APIRouter, HTTPException
-# import json
-# import logging
-# from app.core.powershell_client import execute_remote_ps
-# from app.models.user_schemas import ADUserCreate, ADUserUpdate
-
-# router = APIRouter()
-# logger = logging.getLogger(__name__)
-
-# @router.get("/test_connection")
-# def test_connection():
-#     try:
-#         ps_command = "Write-Output 'Connection successful'; $env:COMPUTERNAME"
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         return {
-#             "status": "success" if rc == 0 else "error",
-#             "return_code": rc,
-#             "stdout": stdout,
-#             "stderr": stderr
-#         }
-#     except Exception as e:
-#         logger.error(f"Connection test failed: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"Connection test failed: {str(e)}")
-
-# @router.get("/list_users")
-# def list_users():
-#     try:
-#         ps_command = '''
-#         try {
-#             Import-Module ActiveDirectory -ErrorAction Stop
-#             $users = Get-ADUser -Filter * -Properties Name, SamAccountName, Enabled, LastLogonDate |
-#                      Select-Object Name, SamAccountName, Enabled, LastLogonDate |
-#                      Sort-Object Name
-#             if ($users.Count -eq 0) {
-#                 Write-Output "[]"
-#             } else {
-#                 $users | ConvertTo-Json -Depth 2
-#             }
-#         } catch {
-#             Write-Error "PowerShell Error: $($_.Exception.Message)"
-#             exit 1
-#         }
-#         '''
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         if rc != 0:
-#             logger.error(f"PowerShell command failed with return code {rc}")
-#             logger.error(f"Error output: {stderr}")
-#             raise HTTPException(
-#                 status_code=500,
-#                 detail=f"PowerShell command failed: {stderr}"
-#             )
-#         if not stdout or stdout.strip() == "":
-#             return {"users": [], "message": "No users found or empty response"}
-#         try:
-#             data = json.loads(stdout)
-#             if isinstance(data, dict):
-#                 data = [data]
-#             return {
-#                 "users": data,
-#                 "count": len(data),
-#                 "status": "success"
-#             }
-#         except json.JSONDecodeError as e:
-#             logger.error(f"JSON decode error: {str(e)}")
-#             logger.error(f"Raw output: {stdout}")
-#             return {
-#                 "error": "Failed to parse JSON response",
-#                 "raw_output": stdout,
-#                 "json_error": str(e)
-#             }
-#     except Exception as e:
-#         logger.error(f"Unexpected error in list_users: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @router.post("/users")
-# def create_user(user: ADUserCreate):
-#     enabled_ps = "$true" if user.enabled else "$false"
-#     try:
-#         # Handle optional OU parameter
-#         ou_param = ""
-#         if user.ou and user.ou.strip() and user.ou.lower() != "none":
-#             ou_param = f'-Path "{user.ou}"'
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            # Check if user exists first
+            $user = Get-ADUser -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Reset password first
+            $SecurePassword = ConvertTo-SecureString "{new_password}" -AsPlainText -Force
+            Set-ADAccountPassword -Identity "{samaccountname}" -NewPassword $SecurePassword -Reset -ErrorAction Stop
+            
+            # Set password to change at next logon (optional)
+            Set-ADUser -Identity "{samaccountname}" -ChangePasswordAtLogon $true -ErrorAction Stop
+            
+            # Now enable the account
+            Enable-ADAccount -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Verify the changes
+            $updatedUser = Get-ADUser -Identity "{samaccountname}" -Properties Enabled -ErrorAction Stop
+            
+            $result = @{{
+                Message = "User password reset and account enabled successfully"
+                SamAccountName = $updatedUser.SamAccountName
+                Name = $updatedUser.Name
+                Enabled = $updatedUser.Enabled
+                PasswordReset = $true
+                ChangePasswordAtLogon = $true
+                Success = $true
+            }}
+            
+            $result | ConvertTo-Json -Depth 3
+        }} catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {{
+            $errorResult = @{{
+                Message = "User not found"
+                Error = "User '{samaccountname}' does not exist in Active Directory"
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }} catch {{
+            $errorResult = @{{
+                Message = "Failed to reset password and enable user"
+                Error = $_.Exception.Message
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }}
+        '''
         
-#         ps_command = f'''
-#         try {{
-#             Import-Module ActiveDirectory -ErrorAction Stop
-#             $SecurePass = ConvertTo-SecureString "{user.password}" -AsPlainText -Force
-#             New-ADUser -Name "{user.name}" -SamAccountName "{user.samaccountname}" -AccountPassword $SecurePass -Enabled {enabled_ps} {ou_param}
-#             Write-Output "User created successfully"
-#         }} catch {{
-#             Write-Error "PowerShell Error: $($_.Exception.Message)"
-#             exit 1
-#         }}
-#         '''
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         if rc != 0:
-#             logger.error(f"PowerShell command failed: {stderr}")
-#             raise HTTPException(status_code=500, detail=f"PowerShell command failed: {stderr}")
-#         return {"message": stdout.strip() or "User created successfully"}
-#     except Exception as e:
-#         logger.error(f"Error creating user: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @router.put("/users/{samaccountname}")
-# def update_user(samaccountname: str, user: ADUserUpdate):
-#     try:
-#         set_params = []
-#         if user.name:
-#             set_params.append(f'-Name "{user.name}"')
-#         if user.password:
-#             set_params.append(f'-AccountPassword (ConvertTo-SecureString "{user.password}" -AsPlainText -Force)')
-#         if user.enabled is not None:
-#             enabled_value = "$true" if user.enabled else "$false"
-#             set_params.append(f'-Enabled {enabled_value}')
+        stdout, stderr, rc = execute_remote_ps(ps_command)
         
-#         if not set_params:
-#             raise HTTPException(status_code=400, detail="No fields to update.")
+        if rc != 0:
+            logger.error(f"Reset and enable failed - Return code: {rc}, stderr: {stderr}")
+            try:
+                error_result = json.loads(stdout) if stdout else {"error": stderr}
+                raise HTTPException(status_code=500, detail=error_result)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=500, detail=f"Failed to reset and enable user: {stderr}")
         
-#         set_params_str = ' '.join(set_params)
-#         ps_command = f'''
-#         try {{
-#             Import-Module ActiveDirectory -ErrorAction Stop
-#             Set-ADUser -Identity "{samaccountname}" {set_params_str}
-#             Write-Output "User updated successfully"
-#         }} catch {{
-#             Write-Error "PowerShell Error: $($_.Exception.Message)"
-#             exit 1
-#         }}
-#         '''
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         if rc != 0:
-#             logger.error(f"PowerShell command failed: {stderr}")
-#             raise HTTPException(status_code=500, detail=f"PowerShell command failed: {stderr}")
-#         return {"message": stdout.strip() or "User updated successfully"}
-#     except Exception as e:
-#         logger.error(f"Error updating user: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+        try:
+            result = json.loads(stdout)
+            logger.info(f"User {samaccountname} password reset and enabled successfully: {result}")
+            return {
+                "operation": "reset_and_enable",
+                "samaccountname": samaccountname,
+                "result": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON decode error, but operation might have succeeded: {e}")
+            return {
+                "operation": "reset_and_enable",
+                "samaccountname": samaccountname,
+                "message": "User password reset and enabled successfully",
+                "raw_output": stdout,
+                "status": "success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error resetting password and enabling user {samaccountname}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-# @router.delete("/users/{samaccountname}")
-# def delete_user(samaccountname: str):
-#     try:
-#         ps_command = f'''
-#         try {{
-#             Import-Module ActiveDirectory -ErrorAction Stop
-#             Remove-ADUser -Identity "{samaccountname}" -Confirm:$false
-#             Write-Output "User deleted successfully"
-#         }} catch {{
-#             Write-Error "PowerShell Error: $($_.Exception.Message)"
-#             exit 1
-#         }}
-#         '''
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         if rc != 0:
-#             logger.error(f"PowerShell command failed: {stderr}")
-#             raise HTTPException(status_code=500, detail=f"PowerShell command failed: {stderr}")
-#         return {"message": stdout.strip() or "User deleted successfully"}
-#     except Exception as e:
-#         logger.error(f"Error deleting user: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @router.get("/test_ad_module")
-# def test_ad_module():
-#     try:
-#         ps_command = """
-#         try {
-#             Import-Module ActiveDirectory -ErrorAction Stop
-#             Write-Output 'AD module loaded'
-#         } catch {
-#             Write-Output 'Error: ' + $_
-#         }
-#         """
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         return {
-#             "stdout": stdout,
-#             "stderr": stderr,
-#             "rc": rc
-#         }
-#     except Exception as e:
-#         return {"error": str(e)}
-
-# @router.get("/test_get_aduser")
-# def test_get_aduser():
-#     try:
-#         ps_command = """
-#         try {
-#             Import-Module ActiveDirectory -ErrorAction Stop
-#             Get-ADUser -Filter * | Select-Object -First 1 | ConvertTo-Json
-#         } catch {
-#             Write-Output 'Error: ' + $_
-#         }
-#         """
-#         stdout, stderr, rc = execute_remote_ps(ps_command)
-#         return {
-#             "stdout": stdout,
-#             "stderr": stderr,
-#             "rc": rc
-#         }
-#     except Exception as e:
-#         return {"error": str(e)}
+@router.put("/users/force-enable/{samaccountname}")
+def force_enable_user(samaccountname: str):
+    """Force enable a user account (bypasses password policy checks)"""
+    try:
+        logger.info(f"Force enabling user: {samaccountname}")
+        
+        ps_command = f'''
+        try {{
+            Import-Module ActiveDirectory -ErrorAction Stop
+            
+            # Check if user exists first
+            $user = Get-ADUser -Identity "{samaccountname}" -ErrorAction Stop
+            
+            # Try to enable using Set-ADUser instead of Enable-ADAccount
+            Set-ADUser -Identity "{samaccountname}" -Enabled $true -ErrorAction Stop
+            
+            # Verify the change
+            $updatedUser = Get-ADUser -Identity "{samaccountname}" -Properties Enabled -ErrorAction Stop
+            
+            $result = @{{
+                Message = "User force enabled successfully"
+                SamAccountName = $updatedUser.SamAccountName
+                Name = $updatedUser.Name
+                Enabled = $updatedUser.Enabled
+                Method = "Force Enable (Set-ADUser)"
+                Success = $true
+            }}
+            
+            $result | ConvertTo-Json -Depth 3
+        }} catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {{
+            $errorResult = @{{
+                Message = "User not found"
+                Error = "User '{samaccountname}' does not exist in Active Directory"
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }} catch {{
+            $errorResult = @{{
+                Message = "Failed to force enable user"
+                Error = $_.Exception.Message
+                Success = $false
+            }}
+            $errorResult | ConvertTo-Json -Depth 3
+            exit 1
+        }}
+        '''
+        
+        stdout, stderr, rc = execute_remote_ps(ps_command)
+        
+        if rc != 0:
+            logger.error(f"Force enable failed - Return code: {rc}, stderr: {stderr}")
+            try:
+                error_result = json.loads(stdout) if stdout else {"error": stderr}
+                raise HTTPException(status_code=500, detail=error_result)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=500, detail=f"Failed to force enable user: {stderr}")
+        
+        try:
+            result = json.loads(stdout)
+            logger.info(f"User {samaccountname} force enabled successfully: {result}")
+            return {
+                "operation": "force_enable",
+                "samaccountname": samaccountname,
+                "result": result,
+                "status": "success"
+            }
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON decode error, but operation might have succeeded: {e}")
+            return {
+                "operation": "force_enable",
+                "samaccountname": samaccountname,
+                "message": "User force enabled successfully",
+                "raw_output": stdout,
+                "status": "success"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error force enabling user {samaccountname}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 

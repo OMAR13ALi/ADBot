@@ -55,6 +55,41 @@ export class UsersService {
     return apiService.delete(`/users/${encodeURIComponent(samAccountName)}`);
   }
 
+  // Enable a user (standard method)
+  async enableUser(samaccountname: string): Promise<ApiResponse<any>> {
+    return apiService.put<any>(`/users/enable/${samaccountname}`);
+  }
+
+  // Force enable a user (bypasses password policy)
+  async forceEnableUser(samaccountname: string): Promise<ApiResponse<any>> {
+    return apiService.put<any>(`/users/force-enable/${samaccountname}`);
+  }
+
+  // Reset password and enable user
+  async resetAndEnableUser(samaccountname: string, newPassword: string = "TempPassword123!"): Promise<ApiResponse<any>> {
+    return apiService.put<any>(`/users/reset-and-enable/${samaccountname}?new_password=${encodeURIComponent(newPassword)}`);
+  }
+
+  // Disable a user
+  async disableUser(samaccountname: string): Promise<ApiResponse<any>> {
+    return apiService.put<any>(`/users/disable/${samaccountname}`);
+  }
+
+  // Get user status
+  async getUserStatus(samaccountname: string): Promise<ApiResponse<any>> {
+    return apiService.get<any>(`/users/status/${samaccountname}`);
+  }
+
+  // Bulk enable users
+  async bulkEnableUsers(samaccountnames: string[]): Promise<ApiResponse<any>> {
+    return apiService.put<any>(`/users/bulk-enable`, samaccountnames);
+  }
+
+  // Bulk disable users
+  async bulkDisableUsers(samaccountnames: string[]): Promise<ApiResponse<any>> {
+    return apiService.put<any>(`/users/bulk-disable`, samaccountnames);
+  }
+
   // Get organizational units (for user creation/move)
   async getOrganizationalUnits(): Promise<ApiResponse<OrganizationalUnitsResponse>> {
     return apiService.get<OrganizationalUnitsResponse>('/organizational-units');

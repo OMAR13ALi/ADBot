@@ -28,7 +28,7 @@ export interface CreateUserRequest {
   surname?: string;
   display_name?: string;
   user_principal_name?: string;
-  path?: string;
+  ou?: string;
 }
 
 export interface UpdateUserRequest {
@@ -64,7 +64,7 @@ export interface CreateGroupRequest {
   name: string;
   samaccountname: string;
   description?: string;
-  path?: string;
+  ou?: string;
 }
 
 export interface UpdateGroupRequest {

@@ -346,22 +346,30 @@ export class UserListComponent implements OnInit {
   }
 
   updateUserStatus(user: User, enabled: boolean) {
-    this.http.put(`/api/users/${user.SamAccountName}`, { enabled })
+    const endpoint = enabled ? 'enable' : 'disable';
+    this.http.put(`/api/users/${endpoint}/${user.SamAccountName}`)
       .subscribe({
         next: (response: any) => {
+          // Update the user's enabled status
           user.Enabled = enabled;
+          
+          // Show success message
+          const message = enabled ? 'enabled' : 'disabled';
           this.messageService.add({
             severity: 'success',
             summary: 'Success',
-            detail: `User ${enabled ? 'enabled' : 'disabled'} successfully`
+            detail: `User ${message} successfully`
           });
+          
+          // Log the response for debugging
+          console.log('User status update response:', response);
         },
         error: (error) => {
           console.error('Error updating user status:', error);
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: `Failed to ${enabled ? 'enable' : 'disable'} user`
+            detail: `Failed to ${enabled ? 'enable' : 'disable'} user: ${error.error?.detail || error.message}`
           });
         }
       });

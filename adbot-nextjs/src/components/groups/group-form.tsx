@@ -27,7 +27,7 @@ export function GroupForm({ group, mode, onClose, onSuccess }: GroupFormProps) {
     name: group?.Name || '',
     samaccountname: group?.SamAccountName || '',
     description: group?.Description || '',
-    path: ''
+    ou: ''
   });
 
   useEffect(() => {
@@ -158,8 +158,8 @@ export function GroupForm({ group, mode, onClose, onSuccess }: GroupFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="ou">Organizational Unit</Label>
                 <Select
-                  value={formData.path || "default"}
-                  onValueChange={(value) => handleInputChange('path', value === "default" ? "" : value)}
+                  value={formData.ou || "default"}
+                  onValueChange={(value) => handleInputChange('ou', value === "default" ? "" : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select OU (optional)" />

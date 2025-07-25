@@ -34,7 +34,7 @@ export function UserForm({ user, mode, onClose, onSuccess }: UserFormProps) {
     surname: user?.Surname || '',
     display_name: user?.DisplayName || '',
     user_principal_name: user?.UserPrincipalName || '',
-    path: ''
+    ou: ''
   });
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export function UserForm({ user, mode, onClose, onSuccess }: UserFormProps) {
         surname: user.Surname || '',
         display_name: user.DisplayName || '',
         user_principal_name: user.UserPrincipalName || '',
-        path: ''
+        ou: ''
       });
       console.log('Form data updated with user:', user);
       console.log('User enabled status:', user.Enabled);
@@ -270,8 +270,8 @@ export function UserForm({ user, mode, onClose, onSuccess }: UserFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="ou">Organizational Unit</Label>
                 <Select
-                  value={formData.path || "default"}
-                  onValueChange={(value) => handleInputChange('path', value === "default" ? "" : value)}
+                  value={formData.ou || "default"}
+                  onValueChange={(value) => handleInputChange('ou', value === "default" ? "" : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select OU (optional)" />
