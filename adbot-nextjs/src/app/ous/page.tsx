@@ -116,12 +116,12 @@ export default function OUsPage() {
   return (
     <MainLayout>
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Organizational Units</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-foreground">Organizational Units</h1>
+              <p className="text-muted-foreground mt-2">
                 Manage Active Directory organizational units
               </p>
             </div>
@@ -167,9 +167,9 @@ export default function OUsPage() {
 
         {/* Error Display */}
         {error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
+          <Card className="mb-6 border-destructive/50 bg-destructive/10">
             <CardContent className="pt-6">
-              <p className="text-red-800 text-sm">
+              <p className="text-destructive text-sm">
                 <strong>Error:</strong> {error}
               </p>
             </CardContent>
@@ -187,12 +187,12 @@ export default function OUsPage() {
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-600">Loading OUs...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Loading OUs...</span>
               </div>
             ) : filteredOUs.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <FolderOpen className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                 <p className="text-sm">No organizational units found</p>
               </div>
             ) : (
@@ -210,7 +210,7 @@ export default function OUsPage() {
                     <TableRow key={ou.DistinguishedName}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <FolderOpen className="h-4 w-4 text-blue-500" />
+                          <FolderOpen className="h-4 w-4 text-primary" />
                           {ou.Name}
                         </div>
                       </TableCell>

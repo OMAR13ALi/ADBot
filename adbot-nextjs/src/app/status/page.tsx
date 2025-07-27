@@ -9,12 +9,12 @@ export default function StatusPage() {
   return (
     <MainLayout>
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">System Status</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-foreground">System Status</h1>
+              <p className="text-muted-foreground mt-2">
                 Monitor Active Directory system health and performance
               </p>
             </div>
@@ -33,25 +33,25 @@ export default function StatusPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-green-600" />
+                <Activity className="h-5 w-5 text-primary" />
                 AD Domain
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Status:</span>
-                  <Badge variant="default" className="bg-green-500">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Online
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Domain:</span>
+                  <span className="text-sm text-muted-foreground">Domain:</span>
                   <span className="text-sm font-medium">company.local</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">DC:</span>
+                  <span className="text-sm text-muted-foreground">DC:</span>
                   <span className="text-sm font-medium">DC01.company.local</span>
                 </div>
               </div>
@@ -62,25 +62,25 @@ export default function StatusPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-blue-600" />
+                <Activity className="h-5 w-5 text-primary" />
                 API Service
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Status:</span>
-                  <Badge variant="default" className="bg-green-500">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Running
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Port:</span>
+                  <span className="text-sm text-muted-foreground">Port:</span>
                   <span className="text-sm font-medium">8000</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Version:</span>
+                  <span className="text-sm text-muted-foreground">Version:</span>
                   <span className="text-sm font-medium">1.0.0</span>
                 </div>
               </div>
@@ -91,25 +91,25 @@ export default function StatusPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-purple-600" />
+                <Activity className="h-5 w-5 text-primary" />
                 PowerShell
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Status:</span>
-                  <Badge variant="default" className="bg-green-500">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Available
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Module:</span>
+                  <span className="text-sm text-muted-foreground">Module:</span>
                   <span className="text-sm font-medium">ActiveDirectory</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Version:</span>
+                  <span className="text-sm text-muted-foreground">Version:</span>
                   <span className="text-sm font-medium">1.0.0.0</span>
                 </div>
               </div>
@@ -126,8 +126,8 @@ export default function StatusPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-12 text-gray-500">
-              <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-12 text-muted-foreground">
+              <Activity className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
               <p className="text-lg font-medium mb-2">System Monitoring</p>
               <p className="text-sm">Detailed system metrics and monitoring will be displayed here.</p>
               <p className="text-xs mt-2">Coming soon...</p>

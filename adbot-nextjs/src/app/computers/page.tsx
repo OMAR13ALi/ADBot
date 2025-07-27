@@ -90,12 +90,12 @@ export default function ComputersPage() {
   return (
     <MainLayout>
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Computer Management</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-foreground">Computer Management</h1>
+              <p className="text-muted-foreground mt-2">
                 View and manage Active Directory computers in your domain
               </p>
             </div>
@@ -137,9 +137,9 @@ export default function ComputersPage() {
 
         {/* Error Display */}
         {error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
+          <Card className="mb-6 border-destructive/50 bg-destructive/10">
             <CardContent className="pt-6">
-              <p className="text-red-800 text-sm">
+              <p className="text-destructive text-sm">
                 <strong>Error:</strong> {error}
               </p>
             </CardContent>
@@ -157,12 +157,12 @@ export default function ComputersPage() {
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-600">Loading computers...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Loading computers...</span>
               </div>
             ) : filteredComputers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Monitor className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-8 text-muted-foreground">
+                <Monitor className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                 <p className="text-lg font-medium">No computers found</p>
                 <p className="text-sm">Try adjusting your search criteria or refresh the list</p>
               </div>
@@ -185,12 +185,12 @@ export default function ComputersPage() {
                     <TableRow key={computer.SamAccountName}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <Monitor className="h-4 w-4 text-blue-600" />
+                          <Monitor className="h-4 w-4 text-primary" />
                           {computer.Name}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                        <code className="bg-muted px-2 py-1 rounded text-sm text-foreground">
                           {computer.SamAccountName}
                         </code>
                       </TableCell>
@@ -206,7 +206,7 @@ export default function ComputersPage() {
                         {formatDate(computer.LastLogonDate)}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-muted-foreground">
                           {getParentPath(computer.DistinguishedName)}
                         </span>
                       </TableCell>

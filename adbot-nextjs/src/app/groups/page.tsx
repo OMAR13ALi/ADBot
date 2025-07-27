@@ -193,12 +193,12 @@ export default function GroupsPage() {
   return (
     <MainLayout>
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Group Management</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-foreground">Group Management</h1>
+              <p className="text-muted-foreground mt-2">
                 Manage Active Directory groups and their members
               </p>
             </div>
@@ -244,9 +244,9 @@ export default function GroupsPage() {
 
         {/* Error Display */}
         {error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
+          <Card className="mb-6 border-destructive/50 bg-destructive/10">
             <CardContent className="pt-6">
-              <p className="text-red-800 text-sm">
+              <p className="text-destructive text-sm">
                 <strong>Error:</strong> {error}
               </p>
             </CardContent>
@@ -264,11 +264,11 @@ export default function GroupsPage() {
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-600">Loading groups...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Loading groups...</span>
               </div>
             ) : filteredGroups.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No groups found
               </div>
             ) : (
@@ -289,7 +289,7 @@ export default function GroupsPage() {
                         {group.Name}
                       </TableCell>
                       <TableCell>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                        <code className="bg-muted px-2 py-1 rounded text-sm text-foreground">
                           {group.SamAccountName}
                         </code>
                       </TableCell>

@@ -67,16 +67,16 @@ export default function DashboardPage() {
     const cardContent = (
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
             {title}
           </CardTitle>
-          <div className={`p-2 rounded-lg bg-${color}-100`}>
-            <Icon className={`h-4 w-4 text-${color}-600`} />
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Icon className="h-4 w-4 text-primary" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
-          <p className="text-xs text-gray-500 mt-1">
+          <div className="text-2xl font-bold text-foreground">{value}</div>
+          <p className="text-xs text-muted-foreground mt-1">
             {description}
           </p>
         </CardContent>
@@ -97,12 +97,12 @@ export default function DashboardPage() {
   return (
     <MainLayout>
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+              <p className="text-muted-foreground mt-2">
                 Overview of your Active Directory environment
               </p>
             </div>
@@ -118,9 +118,9 @@ export default function DashboardPage() {
       <div className="px-6 py-8">
         {/* Error Display */}
         {error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
+          <Card className="mb-6 border-destructive/50 bg-destructive/10">
             <CardContent className="pt-6">
-              <p className="text-red-800 text-sm">
+              <p className="text-destructive text-sm">
                 <strong>Error:</strong> {error}
               </p>
             </CardContent>
@@ -134,12 +134,12 @@ export default function DashboardPage() {
             Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
-                  <div className="h-8 w-8 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
+                  <div className="h-8 w-8 bg-muted rounded animate-pulse"></div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-8 bg-gray-200 rounded w-16 animate-pulse mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-32 animate-pulse"></div>
+                  <div className="h-8 bg-muted rounded w-16 animate-pulse mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-32 animate-pulse"></div>
                 </CardContent>
               </Card>
             ))
@@ -233,18 +233,18 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Connection Status</span>
-                <Badge variant="default" className="bg-green-100 text-green-800">
+                <span className="text-sm text-muted-foreground">Connection Status</span>
+                <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400">
                   Connected
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Active Directory</span>
+                <span className="text-sm text-muted-foreground">Active Directory</span>
                 <Badge variant="outline">Operational</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Last Updated</span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">Last Updated</span>
+                <span className="text-sm text-muted-foreground">
                   {new Date().toLocaleTimeString()}
                 </span>
               </div>
